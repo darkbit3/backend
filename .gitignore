@@ -2,9 +2,7 @@
 node_modules/
 
 # Environment — never commit real secrets
-.env
-.env.local
-.env.*.local
+
 
 # Database files — generated at runtime
 data/*.sqlite
