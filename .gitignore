@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Environment — never commit real secrets
+.env
+.env.local
+.env.*.local
+
+# Database files — generated at runtime
+data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
+
+# Logs
+logs/*.log
+logs/*.log.*
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.sw?
