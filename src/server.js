@@ -24,9 +24,18 @@ createTables()
 app.use(helmet())
 // Allow all origins in development (Flutter desktop/mobile sends no Origin header)
 app.use(cors({
-  origin: config.nodeEnv === 'production'
-    ? ['http://localhost:5173', 'http://localhost:4173']
-   : ['http://localhost:5173', 'http://localhost:4173', 'https://admin-m1b6.onrender.com'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, Render health checks)
+    if (!origin) return callback(null, true)
+    const allowed = [
+      'http://localhost:5173',
+      'http://localhost:4173',
+      'https://admin-m1b6.onrender.com',
+      // Add your custom domain here if you have one
+    ]
+    if (allowed.includes(origin)) return callback(null, true)
+    return callback(new Error(`CORS blocked: ${origin}`))
+  },
   credentials: true,
 }))
 
@@ -63,6 +72,11 @@ app.use('/api/cashiers',  cashierRoutes)
 app.use('/api/sales',     saleRoutes)
 app.use('/api/materials', materialRoutes)
 app.use('/api/credits',   creditRoutes)
+
+// ── Root ───────────────────────────────────────────────────────────────────
+app.get('/', (req, res) => {
+  res.json({ success: true, message: 'Shmeta API is running', version: '1.0.0' })
+})
 
 // ── Health check ───────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
