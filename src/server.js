@@ -26,7 +26,7 @@ app.use(helmet())
 app.use(cors({
   origin: config.nodeEnv === 'production'
     ? ['http://localhost:5173', 'http://localhost:4173']
-    : true,          // reflect any origin in development
+   : ['http://localhost:5173', 'http://localhost:4173', 'https://admin-m1b6.onrender.com'],
   credentials: true,
 }))
 
