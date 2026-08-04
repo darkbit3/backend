@@ -6,20 +6,23 @@ const db             = require('./db')
 const config         = require('../config/config')
 
 async function seedAdmin() {
-  const existing = db.prepare('SELECT id FROM admins WHERE phone = ?').get(config.admin.phone)
-  const hash = await bcrypt.hash(config.admin.password, 10)
+  const phone    = config.admin.phone    || '0912345678'
+  const password = config.admin.password || 'admin123'
+  const hash     = await bcrypt.hash(password, 10)
+
+  const existing = db.prepare('SELECT id FROM admins WHERE phone = ?').get(phone)
 
   if (!existing) {
-    db.prepare(`
-      INSERT INTO admins (id, phone, password, name)
-      VALUES (?, ?, ?, ?)
-    `).run(uuidv4(), config.admin.phone, hash, 'Super Admin')
-    console.log(`[DB] Admin created — phone: ${config.admin.phone}`)
+    db.prepare(
+      'INSERT INTO admins (id, phone, password, name) VALUES (?, ?, ?, ?)'
+    ).run(uuidv4(), phone, hash, 'Super Admin')
+    console.log(`[DB] Admin created — phone: ${phone}`)
   } else {
-    // Always sync password to match current env — fixes stale hash on Render restarts
-    db.prepare(`UPDATE admins SET password = ?, updated_at = datetime('now') WHERE phone = ?`)
-      .run(hash, config.admin.phone)
-    console.log(`[DB] Admin password synced — phone: ${config.admin.phone}`)
+    // Always overwrite password so stale hashes on Render never block login
+    db.prepare(
+      `UPDATE admins SET password = ?, updated_at = datetime('now') WHERE phone = ?`
+    ).run(hash, phone)
+    console.log(`[DB] Admin password synced — phone: ${phone}`)
   }
 }
 
