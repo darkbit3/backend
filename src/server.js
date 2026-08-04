@@ -80,6 +80,22 @@ app.get('/health', (req, res) => {
   res.json({ success: true, message: 'Server is running', env: config.nodeEnv })
 })
 
+// ── Temp debug: verify admin password (remove after fix) ──────────────────
+app.get('/debug-admin', async (req, res) => {
+  const bcrypt = require('bcryptjs')
+  const db = require('./database/db')
+  const admin = db.prepare('SELECT phone, name, password FROM admins LIMIT 1').get()
+  if (!admin) return res.json({ exists: false })
+  const match = await bcrypt.compare(config.admin.password, admin.password)
+  res.json({
+    exists: true,
+    phone: admin.phone,
+    name: admin.name,
+    configPassword: config.admin.password,
+    passwordMatch: match,
+  })
+})
+
 // ── 404 handler ────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` })
