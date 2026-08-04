@@ -6,6 +6,7 @@ const morgan       = require('morgan')
 const rateLimit    = require('express-rate-limit')
 const config       = require('./config/config')
 const { createTables } = require('./database/schema')
+const { seedAdmin }  = require('./database/init')
 const errorHandler = require('./middleware/errorHandler')
 const authRoutes     = require('./routes/admin_login_route')
 const userRoutes     = require('./routes/admin_manage_route')
@@ -19,6 +20,7 @@ const app = express()
 
 // ── Init DB ────────────────────────────────────────────────────────────────
 createTables()
+seedAdmin()
 
 // ── Security middleware ────────────────────────────────────────────────────
 app.use(helmet())
