@@ -18,22 +18,15 @@ const creditRoutes   = require('./routes/credit_route')
 
 const app = express()
 
-// ── Init DB ────────────────────────────────────────────────────────────────
-createTables()
-seedAdmin()
-
 // ── Security middleware ────────────────────────────────────────────────────
 app.use(helmet())
-// Allow all origins in development (Flutter desktop/mobile sends no Origin header)
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, Render health checks)
     if (!origin) return callback(null, true)
     const allowed = [
       'http://localhost:5173',
       'http://localhost:4173',
       'https://admin-m1b6.onrender.com',
-      // Add your custom domain here if you have one
     ]
     if (allowed.includes(origin)) return callback(null, true)
     return callback(new Error(`CORS blocked: ${origin}`))
@@ -43,7 +36,7 @@ app.use(cors({
 
 // ── Rate limiting ──────────────────────────────────────────────────────────
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 100,
   message: { success: false, message: 'Too many requests, please try again later.' },
 })
@@ -95,9 +88,18 @@ app.use((req, res) => {
 // ── Error handler ──────────────────────────────────────────────────────────
 app.use(errorHandler)
 
-// ── Start ──────────────────────────────────────────────────────────────────
-app.listen(config.port, () => {
-  console.log(`[SERVER] Running on http://localhost:${config.port} (${config.nodeEnv})`)
+// ── Boot: init DB then start listening ────────────────────────────────────
+async function start() {
+  createTables()
+  await seedAdmin()
+  app.listen(config.port, () => {
+    console.log(`[SERVER] Running on http://localhost:${config.port} (${config.nodeEnv})`)
+  })
+}
+
+start().catch((err) => {
+  console.error('[SERVER] Failed to start:', err)
+  process.exit(1)
 })
 
 module.exports = app
