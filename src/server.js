@@ -34,7 +34,7 @@ app.use(cors({
       'http://localhost:5174',
       'http://localhost:4174',
       'https://admin-m1b6.onrender.com',
-      'https://super-admin.onrender.com',
+      'https://super-admin-y9sz.onrender.com',
     ]
     if (allowed.includes(origin)) return callback(null, true)
     return callback(new Error(`CORS blocked: ${origin}`))
