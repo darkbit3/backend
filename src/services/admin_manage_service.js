@@ -17,12 +17,13 @@ function isPhoneInUse(phone, excludeId = null) {
 }
 
 const adminManageService = {
-  getAll() {
-    return UserModel.findAll()
+  // adminId scoped — each admin only sees their own users
+  getAll(adminId) {
+    return UserModel.findAll(adminId)
   },
 
-  getStats() {
-    return UserModel.getStats()
+  getStats(adminId) {
+    return UserModel.getStats(adminId)
   },
 
   getOne(id) {
@@ -37,14 +38,14 @@ const adminManageService = {
     return user.plain_password || '(password not available)'
   },
 
-  async create({ name, phone, password, role, accountType, freeUntil }) {
+  async create({ name, phone, password, role, accountType, freeUntil, adminId }) {
     if (isPhoneInUse(phone)) {
       throw { status: 409, message: 'Phone number already registered across accounts' }
     }
 
     const hash = await bcrypt.hash(password, 10)
     const id   = uuidv4()
-    UserModel.create({ id, name, phone, password: hash, plainPassword: password, role, accountType, freeUntil })
+    UserModel.create({ id, name, phone, password: hash, plainPassword: password, role, accountType, freeUntil, adminId })
     return UserModel.findById(id)
   },
 

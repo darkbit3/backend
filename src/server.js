@@ -6,15 +6,17 @@ const morgan       = require('morgan')
 const rateLimit    = require('express-rate-limit')
 const config       = require('./config/config')
 const { createTables } = require('./database/schema')
-const { seedAdmin }  = require('./database/init')
+const { seedAdmin, seedSuperAdmin }  = require('./database/init')
 const errorHandler = require('./middleware/errorHandler')
-const authRoutes     = require('./routes/admin_login_route')
-const userRoutes     = require('./routes/admin_manage_route')
-const userAuthRoutes = require('./routes/user_login_route')
-const cashierRoutes  = require('./routes/cashier_route')
-const saleRoutes     = require('./routes/sale_route')
-const materialRoutes = require('./routes/material_route')
-const creditRoutes   = require('./routes/credit_route')
+const authRoutes            = require('./routes/admin_login_route')
+const userRoutes            = require('./routes/admin_manage_route')
+const userAuthRoutes        = require('./routes/user_login_route')
+const cashierRoutes         = require('./routes/cashier_route')
+const saleRoutes            = require('./routes/sale_route')
+const materialRoutes        = require('./routes/material_route')
+const creditRoutes          = require('./routes/credit_route')
+const superAuthRoutes       = require('./routes/super_admin_login_route')
+const superManageRoutes     = require('./routes/super_admin_manage_route')
 
 const app = express()
 
@@ -23,10 +25,16 @@ app.use(helmet())
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true)
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      return callback(null, true)
+    }
     const allowed = [
       'http://localhost:5173',
       'http://localhost:4173',
+      'http://localhost:5174',
+      'http://localhost:4174',
       'https://admin-m1b6.onrender.com',
+      'https://super-admin.onrender.com',
     ]
     if (allowed.includes(origin)) return callback(null, true)
     return callback(new Error(`CORS blocked: ${origin}`))
@@ -48,8 +56,9 @@ const authLimiter = rateLimit({
   message: { success: false, message: 'Too many login attempts, please try again later.' },
 })
 
-app.use('/api/auth/login',      authLimiter)
-app.use('/api/user-auth/login', authLimiter)
+app.use('/api/auth/login',        authLimiter)
+app.use('/api/user-auth/login',   authLimiter)
+app.use('/api/super-auth/login',  authLimiter)
 app.use(limiter)
 
 // ── Body parsing ───────────────────────────────────────────────────────────
@@ -62,13 +71,15 @@ if (config.nodeEnv !== 'test') {
 }
 
 // ── Routes ─────────────────────────────────────────────────────────────────
-app.use('/api/auth',      authRoutes)
-app.use('/api/users',     userRoutes)
-app.use('/api/user-auth', userAuthRoutes)
-app.use('/api/cashiers',  cashierRoutes)
-app.use('/api/sales',     saleRoutes)
-app.use('/api/materials', materialRoutes)
-app.use('/api/credits',   creditRoutes)
+app.use('/api/auth',        authRoutes)
+app.use('/api/users',       userRoutes)
+app.use('/api/user-auth',   userAuthRoutes)
+app.use('/api/cashiers',    cashierRoutes)
+app.use('/api/sales',       saleRoutes)
+app.use('/api/materials',   materialRoutes)
+app.use('/api/credits',     creditRoutes)
+app.use('/api/super-auth',  superAuthRoutes)
+app.use('/api/super/admins', superManageRoutes)
 
 // ── Root ───────────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
@@ -77,6 +88,10 @@ app.get('/', (req, res) => {
 
 // ── Health check ───────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
+  res.json({ success: true, message: 'Server is running', env: config.nodeEnv })
+})
+// Also respond on /api/health (used by front-end warm-up pings)
+app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Server is running', env: config.nodeEnv })
 })
 
@@ -108,6 +123,7 @@ app.use(errorHandler)
 async function start() {
   createTables()
   await seedAdmin()
+  await seedSuperAdmin()
   app.listen(config.port, () => {
     console.log(`[SERVER] Running on http://localhost:${config.port} (${config.nodeEnv})`)
   })

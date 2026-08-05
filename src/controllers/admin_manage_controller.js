@@ -4,7 +4,7 @@ const adminManageController = {
   // GET /api/users/stats
   getStats(req, res, next) {
     try {
-      const data = adminManageService.getStats()
+      const data = adminManageService.getStats(req.admin.id)
       res.json({ success: true, data })
     } catch (err) {
       next(err)
@@ -14,7 +14,7 @@ const adminManageController = {
   // GET /api/users
   getAll(req, res, next) {
     try {
-      const data = adminManageService.getAll()
+      const data = adminManageService.getAll(req.admin.id)
       res.json({ success: true, data })
     } catch (err) {
       next(err)
@@ -44,7 +44,7 @@ const adminManageController = {
   // POST /api/users
   async create(req, res, next) {
     try {
-      const data = await adminManageService.create(req.body)
+      const data = await adminManageService.create({ ...req.body, adminId: req.admin.id })
       res.status(201).json({ success: true, message: 'User created', data })
     } catch (err) {
       next(err)

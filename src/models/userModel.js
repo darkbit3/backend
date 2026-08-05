@@ -1,23 +1,25 @@
 const db = require('../database/db')
 
 const UserModel = {
-  findAll() {
-    return db.prepare('SELECT id, name, phone, role, account_type, free_until, status, created_at FROM users ORDER BY created_at DESC').all()
+  findAll(adminId) {
+    return db.prepare(
+      'SELECT id, name, phone, role, account_type, free_until, status, created_at FROM users WHERE admin_id = ? ORDER BY created_at DESC'
+    ).all(adminId)
   },
 
-  getStats() {
-    const total        = db.prepare('SELECT COUNT(*) as count FROM users').get().count
-    const active       = db.prepare("SELECT COUNT(*) as count FROM users WHERE status = 'Active'").get().count
-    const inactive     = db.prepare("SELECT COUNT(*) as count FROM users WHERE status = 'Inactive'").get().count
-    const manufacturer = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'Manufacturer'").get().count
-    const reseller     = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'Reseller'").get().count
-    const free         = db.prepare("SELECT COUNT(*) as count FROM users WHERE account_type = 'Free' OR account_type IS NULL").get().count
-    const paid         = db.prepare("SELECT COUNT(*) as count FROM users WHERE account_type = 'Paid'").get().count
+  getStats(adminId) {
+    const total        = db.prepare('SELECT COUNT(*) as count FROM users WHERE admin_id = ?').get(adminId).count
+    const active       = db.prepare("SELECT COUNT(*) as count FROM users WHERE status = 'Active' AND admin_id = ?").get(adminId).count
+    const inactive     = db.prepare("SELECT COUNT(*) as count FROM users WHERE status = 'Inactive' AND admin_id = ?").get(adminId).count
+    const manufacturer = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'Manufacturer' AND admin_id = ?").get(adminId).count
+    const reseller     = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'Reseller' AND admin_id = ?").get(adminId).count
+    const free         = db.prepare("SELECT COUNT(*) as count FROM users WHERE (account_type = 'Free' OR account_type IS NULL) AND admin_id = ?").get(adminId).count
+    const paid         = db.prepare("SELECT COUNT(*) as count FROM users WHERE account_type = 'Paid' AND admin_id = ?").get(adminId).count
     return { total, active, inactive, manufacturer, reseller, free, paid }
   },
 
   findById(id) {
-    return db.prepare('SELECT id, name, phone, role, account_type, free_until, status, created_at FROM users WHERE id = ?').get(id)
+    return db.prepare('SELECT id, name, phone, role, account_type, free_until, status, created_at, admin_id FROM users WHERE id = ?').get(id)
   },
 
   findByIdWithPassword(id) {
@@ -28,17 +30,17 @@ const UserModel = {
     return db.prepare('SELECT * FROM users WHERE phone = ?').get(phone)
   },
 
-  create({ id, name, phone, password, plainPassword, role, accountType, freeUntil }) {
-    const type = accountType === 'Paid' ? 'Paid' : 'Free'
+  create({ id, name, phone, password, plainPassword, role, accountType, freeUntil, adminId }) {
+    const type  = accountType === 'Paid' ? 'Paid' : 'Free'
     const until = (type === 'Free' && freeUntil) ? freeUntil : null
     return db.prepare(`
-      INSERT INTO users (id, name, phone, password, plain_password, role, account_type, free_until, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Active')
-    `).run(id, name, phone, password, plainPassword, role, type, until)
+      INSERT INTO users (id, name, phone, password, plain_password, role, account_type, free_until, status, admin_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Active', ?)
+    `).run(id, name, phone, password, plainPassword, role, type, until, adminId)
   },
 
   update(id, { name, phone, role, accountType, freeUntil }) {
-    const type = accountType === 'Paid' ? 'Paid' : 'Free'
+    const type  = accountType === 'Paid' ? 'Paid' : 'Free'
     const until = (type === 'Free' && freeUntil) ? freeUntil : null
     return db.prepare(`
       UPDATE users SET name = ?, phone = ?, role = ?, account_type = ?, free_until = ?, updated_at = datetime('now')
@@ -76,7 +78,7 @@ const UserModel = {
   },
 
   bulkDelete(ids) {
-    const del   = db.prepare('DELETE FROM users WHERE id = ?')
+    const del    = db.prepare('DELETE FROM users WHERE id = ?')
     const runAll = db.transaction((list) => list.forEach(id => del.run(id)))
     runAll(ids)
   },

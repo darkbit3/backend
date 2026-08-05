@@ -1,7 +1,9 @@
 const MaterialModel = require('../models/materialModel')
 
+const VALID_UNITS = ['Meter', 'Piece', 'Kilogram', 'Kilo', 'kg']
+
 const materialService = {
-  create(userId, { name, quantity, unit, unitPrice }) {
+  create(userId, { name, quantity, unit, unitPrice, initialPrice, imageUrl, colors }) {
     if (!name || !name.trim()) {
       throw { status: 400, message: 'Material name is required.' }
     }
@@ -13,17 +15,38 @@ const materialService = {
     if (isNaN(price) || price < 0) {
       throw { status: 400, message: 'Unit price must be a non-negative number.' }
     }
-    const validUnits = ['Meter', 'Piece']
-    if (!validUnits.includes(unit)) {
-      throw { status: 400, message: 'Unit must be Meter or Piece.' }
+    const initPrice = initialPrice !== undefined && initialPrice !== null
+      ? parseFloat(initialPrice)
+      : 0
+    if (isNaN(initPrice) || initPrice < 0) {
+      throw { status: 400, message: 'Initial price must be a non-negative number.' }
+    }
+
+    // Normalize unit — accept Kilogram/Kilo/kg → store as 'Kilogram'
+    let normalizedUnit = unit
+    if (unit === 'kg' || unit === 'Kilo') normalizedUnit = 'Kilogram'
+    if (!VALID_UNITS.includes(normalizedUnit)) {
+      throw { status: 400, message: 'Unit must be Meter, Piece, or Kilogram.' }
+    }
+
+    // Parse colors array
+    let parsedColors = []
+    if (Array.isArray(colors)) {
+      parsedColors = colors.map(c => ({
+        colorName: c.colorName || c.color || 'Default',
+        quantity: parseFloat(c.quantity) || 0,
+      }))
     }
 
     return MaterialModel.create({
       userId,
       name: name.trim(),
       quantity: qty,
-      unit,
+      unit: normalizedUnit,
       unitPrice: price,
+      initialPrice: initPrice,
+      imageUrl: imageUrl || null,
+      colors: parsedColors,
     })
   },
 

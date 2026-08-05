@@ -2,31 +2,24 @@ const bcrypt             = require('bcryptjs')
 const jwt                = require('jsonwebtoken')
 const { v4: uuidv4 }     = require('uuid')
 const config             = require('../config/config')
-const AdminModel         = require('../models/adminModel')
-const TokenModel         = require('../models/tokenModel')
+const SuperAdminModel    = require('../models/superAdminModel')
+const db                 = require('../database/db')
 
 function generateTokens(adminId, phone) {
-  const accessToken = jwt.sign(
-    { id: adminId, phone },
-    config.jwt.secret,
-    { expiresIn: config.jwt.expiresIn }
-  )
-  const refreshToken = jwt.sign(
-    { id: adminId, phone },
-    config.jwt.refreshSecret,
-    { expiresIn: config.jwt.refreshExpiresIn }
-  )
+  const payload = { id: adminId, phone, type: 'super_admin' }
+  const accessToken = jwt.sign(payload, config.jwt.secret, {
+    expiresIn: config.jwt.expiresIn,
+  })
+  const refreshToken = jwt.sign(payload, config.jwt.refreshSecret, {
+    expiresIn: config.jwt.refreshExpiresIn,
+  })
   return { accessToken, refreshToken }
 }
 
-const adminLoginService = {
+const superAdminLoginService = {
   async login(phone, password) {
-    const admin = AdminModel.findByPhone(phone)
+    const admin = SuperAdminModel.findByPhone(phone)
     if (!admin) throw { status: 401, message: 'Invalid phone or password' }
-
-    if (admin.status === 'Inactive') {
-      throw { status: 403, message: 'Your admin account has been blocked by Super Admin. Access denied.' }
-    }
 
     const isMatch = await bcrypt.compare(password, admin.password)
     if (!isMatch) throw { status: 401, message: 'Invalid phone or password' }
@@ -34,7 +27,10 @@ const adminLoginService = {
     const { accessToken, refreshToken } = generateTokens(admin.id, admin.phone)
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-    TokenModel.save({ id: uuidv4(), token: refreshToken, adminId: admin.id, expiresAt })
+    db.prepare(`
+      INSERT INTO super_admin_tokens (id, token, super_admin_id, expires_at)
+      VALUES (?, ?, ?, ?)
+    `).run(uuidv4(), refreshToken, admin.id, expiresAt)
 
     return {
       accessToken,
@@ -46,37 +42,41 @@ const adminLoginService = {
   async refresh(refreshToken) {
     if (!refreshToken) throw { status: 401, message: 'Refresh token required' }
 
-    const stored = TokenModel.findByToken(refreshToken)
+    const stored = db.prepare('SELECT * FROM super_admin_tokens WHERE token = ?').get(refreshToken)
     if (!stored) throw { status: 403, message: 'Invalid refresh token' }
 
     const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret)
     const { accessToken, refreshToken: newRefresh } = generateTokens(decoded.id, decoded.phone)
 
-    TokenModel.delete(refreshToken)
+    db.prepare('DELETE FROM super_admin_tokens WHERE token = ?').run(refreshToken)
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-    TokenModel.save({ id: uuidv4(), token: newRefresh, adminId: decoded.id, expiresAt })
+    db.prepare(`
+      INSERT INTO super_admin_tokens (id, token, super_admin_id, expires_at)
+      VALUES (?, ?, ?, ?)
+    `).run(uuidv4(), newRefresh, decoded.id, expiresAt)
 
     return { accessToken, refreshToken: newRefresh }
   },
 
   logout(refreshToken) {
-    if (refreshToken) TokenModel.delete(refreshToken)
+    if (refreshToken) {
+      db.prepare('DELETE FROM super_admin_tokens WHERE token = ?').run(refreshToken)
+    }
   },
 
   getMe(adminId) {
-    const admin = AdminModel.findById(adminId)
-    if (!admin) throw { status: 404, message: 'Admin not found' }
+    const admin = SuperAdminModel.findById(adminId)
+    if (!admin) throw { status: 404, message: 'Super admin not found' }
     return admin
   },
 
   async changePassword(adminPhone, currentPassword, newPassword) {
-    const admin = AdminModel.findByPhone(adminPhone)
+    const admin = SuperAdminModel.findByPhone(adminPhone)
     const isMatch = await bcrypt.compare(currentPassword, admin.password)
     if (!isMatch) throw { status: 400, message: 'Current password is incorrect' }
-
     const hash = await bcrypt.hash(newPassword, 10)
-    AdminModel.updatePassword(admin.id, hash)
+    SuperAdminModel.updatePassword(admin.id, hash)
   },
 }
 
-module.exports = adminLoginService
+module.exports = superAdminLoginService

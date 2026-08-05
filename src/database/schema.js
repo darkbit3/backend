@@ -43,6 +43,11 @@ function createTables() {
     db.exec(`ALTER TABLE users ADD COLUMN free_until TEXT;`)
   } catch (_) {}
 
+  // Link each user to the admin who created them
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN admin_id TEXT;`)
+  } catch (_) {}
+
   // Cashiers table (belong to a user — Manufacturer or Reseller)
   db.exec(`
     CREATE TABLE IF NOT EXISTS cashiers (
@@ -157,6 +162,14 @@ function createTables() {
   } catch (_) {}
   db.exec("UPDATE materials SET initial_quantity = quantity WHERE initial_quantity = 0 OR initial_quantity IS NULL;")
 
+  // Migration: initial_price (cost/purchase price), image_url, colors (JSON), Kilogram unit
+  try { db.exec("ALTER TABLE materials ADD COLUMN initial_price REAL DEFAULT 0;") } catch (_) {}
+  try { db.exec("ALTER TABLE materials ADD COLUMN image_url TEXT;") } catch (_) {}
+  try { db.exec("ALTER TABLE materials ADD COLUMN colors TEXT DEFAULT '[]';") } catch (_) {}
+  // Extend unit CHECK — update existing rows with bad unit value is safe; constraint only enforced on new rows
+  // We recreate the table or just relax the constraint via migration drop-and-add is not needed;
+  // instead use a soft check in service layer for Kilogram
+
   // Refresh tokens table
   db.exec(`
     CREATE TABLE IF NOT EXISTS refresh_tokens (
@@ -166,6 +179,39 @@ function createTables() {
       expires_at  TEXT NOT NULL,
       created_at  TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+    );
+  `)
+
+  // Add status column to admins if it doesn't exist (migration)
+  try {
+    db.exec(`ALTER TABLE admins ADD COLUMN status TEXT NOT NULL DEFAULT 'Active';`)
+  } catch (_) {}
+
+  try {
+    db.exec(`ALTER TABLE admins ADD COLUMN plain_password TEXT;`)
+  } catch (_) {}
+
+  // Super admins table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS super_admins (
+      id          TEXT PRIMARY KEY,
+      phone       TEXT NOT NULL UNIQUE,
+      password    TEXT NOT NULL,
+      name        TEXT NOT NULL DEFAULT 'Super Admin',
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `)
+
+  // Super admin refresh tokens
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS super_admin_tokens (
+      id              TEXT PRIMARY KEY,
+      token           TEXT NOT NULL UNIQUE,
+      super_admin_id  TEXT NOT NULL,
+      expires_at      TEXT NOT NULL,
+      created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (super_admin_id) REFERENCES super_admins(id) ON DELETE CASCADE
     );
   `)
 
