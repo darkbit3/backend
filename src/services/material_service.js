@@ -3,7 +3,7 @@ const MaterialModel = require('../models/materialModel')
 const VALID_UNITS = ['Meter', 'Piece', 'Kilogram', 'Kilo', 'kg']
 
 const materialService = {
-  create(userId, { name, quantity, unit, unitPrice, initialPrice, imageUrl, colors }) {
+  create(userId, { name, quantity, unit, unitPrice, initialPrice, imageUrl, images, colors }) {
     if (!name || !name.trim()) {
       throw { status: 400, message: 'Material name is required.' }
     }
@@ -38,6 +38,14 @@ const materialService = {
       }))
     }
 
+    // Build images array: accept images[] or fallback to imageUrl string
+    let parsedImages = []
+    if (Array.isArray(images) && images.length > 0) {
+      parsedImages = images.filter(Boolean)
+    } else if (imageUrl) {
+      parsedImages = [imageUrl]
+    }
+
     return MaterialModel.create({
       userId,
       name: name.trim(),
@@ -45,10 +53,11 @@ const materialService = {
       unit: normalizedUnit,
       unitPrice: price,
       initialPrice: initPrice,
-      imageUrl: imageUrl || null,
+      images: parsedImages,
       colors: parsedColors,
     })
   },
+
 
   listForUser(userId) {
     return MaterialModel.findByUser(userId)

@@ -2,13 +2,15 @@ const db = require('../database/db')
 const { v4: uuid } = require('uuid')
 
 const MaterialModel = {
-  create({ userId, name, quantity, unit, unitPrice, initialPrice, imageUrl, colors }) {
+  create({ userId, name, quantity, unit, unitPrice, initialPrice, images, colors }) {
     const id = uuid()
     const colorsJson = JSON.stringify(colors || [])
+    // Store images as JSON array string
+    const imagesJson = JSON.stringify(images && images.length ? images : [])
     db.prepare(`
       INSERT INTO materials (id, user_id, name, quantity, initial_quantity, unit, unit_price, initial_price, image_url, colors)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, userId, name, quantity, quantity, unit, unitPrice, initialPrice || 0, imageUrl || null, colorsJson)
+    `).run(id, userId, name, quantity, quantity, unit, unitPrice, initialPrice || 0, imagesJson, colorsJson)
 
     return MaterialModel.findById(id)
   },
@@ -46,11 +48,22 @@ const MaterialModel = {
     return db.prepare('DELETE FROM materials WHERE id = ? AND user_id = ?').run(id, userId)
   },
 
-  // Parse colors JSON string back to array
+  // Parse colors and images JSON strings back to arrays
   _parse(row) {
     let colors = []
     try { colors = JSON.parse(row.colors || '[]') } catch (_) {}
-    return { ...row, colors }
+
+    // images: stored as JSON array in image_url column
+    let images = []
+    if (row.image_url) {
+      if (row.image_url.startsWith('[')) {
+        try { images = JSON.parse(row.image_url) } catch (_) { images = [row.image_url] }
+      } else if (row.image_url.length > 0) {
+        images = [row.image_url]
+      }
+    }
+
+    return { ...row, colors, images, image_url: images[0] || null }
   },
 }
 
