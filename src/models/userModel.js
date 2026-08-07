@@ -15,7 +15,23 @@ const UserModel = {
     const reseller     = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'Reseller' AND admin_id = ?").get(adminId).count
     const free         = db.prepare("SELECT COUNT(*) as count FROM users WHERE (account_type = 'Free' OR account_type IS NULL) AND admin_id = ?").get(adminId).count
     const paid         = db.prepare("SELECT COUNT(*) as count FROM users WHERE account_type = 'Paid' AND admin_id = ?").get(adminId).count
-    return { total, active, inactive, manufacturer, reseller, free, paid }
+
+    const ownersBreakdown = db.prepare(`
+      SELECT
+        u.id,
+        u.name,
+        u.phone,
+        u.role,
+        u.status,
+        u.account_type,
+        (SELECT COUNT(*) FROM cashiers c WHERE c.owner_id = u.id) AS cashier_count,
+        (SELECT COUNT(*) FROM cutters  ct WHERE ct.owner_id = u.id) AS cutter_count
+      FROM users u
+      WHERE u.admin_id = ?
+      ORDER BY u.created_at DESC
+    `).all(adminId)
+
+    return { total, active, inactive, manufacturer, reseller, free, paid, ownersBreakdown }
   },
 
   findById(id) {
