@@ -17,6 +17,7 @@ const materialRoutes        = require('./routes/material_route')
 const creditRoutes          = require('./routes/credit_route')
 const superAuthRoutes       = require('./routes/super_admin_login_route')
 const superManageRoutes     = require('./routes/super_admin_manage_route')
+const cutterRoutes          = require('./routes/cutter_route')
 
 const app = express()
 
@@ -33,8 +34,6 @@ app.use(cors({
       'http://localhost:4173',
       'http://localhost:5174',
       'http://localhost:4174',
-      'https://admin-m1b6.onrender.com',
-      'https://super-admin-y9sz.onrender.com',
     ]
     if (allowed.includes(origin)) return callback(null, true)
     return callback(new Error(`CORS blocked: ${origin}`))
@@ -62,8 +61,8 @@ app.use('/api/super-auth/login',  authLimiter)
 app.use(limiter)
 
 // ── Body parsing ───────────────────────────────────────────────────────────
-app.use(express.json())
-app.use(express.urlencoded({ extended: false }))
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ extended: false, limit: '10mb' }))
 
 // ── Logging ────────────────────────────────────────────────────────────────
 if (config.nodeEnv !== 'test') {
@@ -78,8 +77,9 @@ app.use('/api/cashiers',    cashierRoutes)
 app.use('/api/sales',       saleRoutes)
 app.use('/api/materials',   materialRoutes)
 app.use('/api/credits',     creditRoutes)
-app.use('/api/super-auth',  superAuthRoutes)
+app.use('/api/super-auth',   superAuthRoutes)
 app.use('/api/super/admins', superManageRoutes)
+app.use('/api/cutters',      cutterRoutes)
 
 // ── Root ───────────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {

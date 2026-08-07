@@ -14,18 +14,32 @@ const SaleModel = {
       `).run(id, cashierId, ownerId, customer || null, paymentType, totalAmount, note || null)
 
       const insertItem = db.prepare(`
-        INSERT INTO sale_items (id, sale_id, material, quantity, unit_price, total)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO sale_items (id, sale_id, material, material_id, quantity, unit_price, total)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `)
-      const updateStock = db.prepare(`
+      const updateStockById = db.prepare(`
         UPDATE materials
         SET quantity = MAX(0, quantity - ?)
-        WHERE user_id = ? AND (LOWER(name) = LOWER(?) OR id = ?)
+        WHERE id = ? AND user_id = ?
+      `)
+      const updateStockByName = db.prepare(`
+        UPDATE materials
+        SET quantity = MAX(0, quantity - ?)
+        WHERE user_id = ? AND LOWER(name) = LOWER(?)
       `)
 
       for (const item of items) {
-        insertItem.run(uuid(), id, item.material, item.quantity, item.unitPrice, item.total)
-        updateStock.run(item.quantity, ownerId, item.material, item.material)
+        insertItem.run(uuid(), id, item.material, item.materialId || null, item.quantity, item.unitPrice, item.total)
+        // Prefer ID-based deduction (accurate); fall back to name match
+        if (item.materialId) {
+          const result = updateStockById.run(item.quantity, item.materialId, ownerId)
+          if (result.changes === 0) {
+            // ID didn't match (e.g. cashier from different owner) — try name
+            updateStockByName.run(item.quantity, ownerId, item.material)
+          }
+        } else {
+          updateStockByName.run(item.quantity, ownerId, item.material)
+        }
       }
 
       // Auto-create credit record for credit sales

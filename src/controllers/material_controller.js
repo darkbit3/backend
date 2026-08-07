@@ -14,8 +14,8 @@ const materialController = {
 
   list(req, res, next) {
     try {
-      const userId = req.user.id
-      const materials = materialService.listForUser(userId)
+      const ownerId = req.user.owner_id || req.user.id
+      const materials = materialService.listForOwner(ownerId)
       res.json({ success: true, data: materials })
     } catch (err) {
       next(err)

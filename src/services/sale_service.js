@@ -12,10 +12,11 @@ const saleService = {
       ownerId = cashier ? cashier.owner_id : cashierId
     }
     const processedItems = items.map(i => ({
-      material:  i.material?.trim(),
-      quantity:  parseFloat(i.quantity),
-      unitPrice: parseFloat(i.unitPrice),
-      total:     parseFloat(i.quantity) * parseFloat(i.unitPrice),
+      material:   i.material?.trim(),
+      materialId: i.materialId || null,
+      quantity:   parseFloat(i.quantity),
+      unitPrice:  parseFloat(i.unitPrice),
+      total:      parseFloat(i.quantity) * parseFloat(i.unitPrice),
     }))
     const totalAmount = processedItems.reduce((s, i) => s + i.total, 0)
     const sale = SaleModel.create({ cashierId, ownerId, customer, paymentType, totalAmount, note, items: processedItems })
