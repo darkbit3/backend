@@ -95,6 +95,24 @@ const AdminManageModel = {
       ORDER BY u.created_at DESC
     `).all()
 
+    const adminsBreakdown = db.prepare(`
+      SELECT
+        a.id,
+        a.name,
+        a.phone,
+        a.status,
+        a.created_at,
+        (SELECT COUNT(*) FROM users u WHERE u.admin_id = a.id) AS owner_count,
+        (SELECT COUNT(*) FROM users u WHERE u.admin_id = a.id AND u.role = 'Manufacturer') AS manufacturer_count,
+        (SELECT COUNT(*) FROM users u WHERE u.admin_id = a.id AND u.role = 'Reseller') AS reseller_count,
+        (SELECT COUNT(*) FROM cashiers c
+          WHERE c.owner_id IN (SELECT id FROM users WHERE admin_id = a.id)) AS cashier_count,
+        (SELECT COUNT(*) FROM cutters ct
+          WHERE ct.owner_id IN (SELECT id FROM users WHERE admin_id = a.id)) AS cutter_count
+      FROM admins a
+      ORDER BY a.created_at DESC
+    `).all()
+
     return {
       total,
       active,
@@ -105,6 +123,7 @@ const AdminManageModel = {
       totalCashiers,
       totalCutters,
       ownersBreakdown,
+      adminsBreakdown,
     }
   },
 }
