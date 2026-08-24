@@ -65,6 +65,7 @@ function createTables() {
   `)
 
   try { db.exec(`ALTER TABLE cashiers ADD COLUMN plain_password TEXT;`) } catch (_) {}
+  try { db.exec(`UPDATE cashiers SET plain_password = NULL`) } catch (_) {}
 
   // Cutters table (belong to a Manufacturer user)
   db.exec(`
@@ -83,6 +84,7 @@ function createTables() {
   `)
 
   try { db.exec(`ALTER TABLE cutters ADD COLUMN plain_password TEXT;`) } catch (_) {}
+  try { db.exec(`UPDATE cutters SET plain_password = NULL`) } catch (_) {}
 
   // Sales table (recorded by a cashier)
   db.exec(`
@@ -187,9 +189,7 @@ function createTables() {
     db.exec(`ALTER TABLE admins ADD COLUMN status TEXT NOT NULL DEFAULT 'Active';`)
   } catch (_) {}
 
-  try {
-    db.exec(`ALTER TABLE admins ADD COLUMN plain_password TEXT;`)
-  } catch (_) {}
+  try { db.exec(`UPDATE admins SET plain_password = NULL`) } catch (_) {}
 
   // Super admins table
   db.exec(`

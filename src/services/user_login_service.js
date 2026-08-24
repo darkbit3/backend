@@ -84,7 +84,7 @@ const userLoginService = {
       const isMatch = await bcrypt.compare(currentPassword, cashier.password)
       if (!isMatch) throw { status: 400, message: 'Current password is incorrect' }
       const hash = await bcrypt.hash(newPassword, 10)
-      db.prepare(`UPDATE cashiers SET password=?,plain_password=?,updated_at=datetime('now') WHERE id=?`).run(hash, newPassword, userId)
+      db.prepare(`UPDATE cashiers SET password=?,updated_at=datetime('now') WHERE id=?`).run(hash, userId)
       return
     }
     const cutter = db.prepare('SELECT * FROM cutters WHERE id = ?').get(userId)
@@ -92,7 +92,7 @@ const userLoginService = {
       const isMatch = await bcrypt.compare(currentPassword, cutter.password)
       if (!isMatch) throw { status: 400, message: 'Current password is incorrect' }
       const hash = await bcrypt.hash(newPassword, 10)
-      db.prepare(`UPDATE cutters SET password=?,plain_password=?,updated_at=datetime('now') WHERE id=?`).run(hash, newPassword, userId)
+      db.prepare(`UPDATE cutters SET password=?,updated_at=datetime('now') WHERE id=?`).run(hash, userId)
       return
     }
     throw { status: 404, message: 'User not found' }

@@ -1,5 +1,6 @@
 const jwt    = require('jsonwebtoken')
 const config = require('../config/config')
+const db     = require('../database/db')
 
 // ── Admin auth ────────────────────────────────────────────────────────────────
 function authenticate(req, res, next) {
@@ -9,6 +10,12 @@ function authenticate(req, res, next) {
   }
   try {
     const decoded = jwt.verify(token, config.jwt.secret)
+    if (!decoded.type) {
+      const admin = db.prepare('SELECT status FROM admins WHERE id = ?').get(decoded.id)
+      if (!admin || admin.status !== 'Active') {
+        return res.status(401).json({ success: false, message: 'Admin account is inactive' })
+      }
+    }
     req.admin = decoded
     next()
   } catch (err) {

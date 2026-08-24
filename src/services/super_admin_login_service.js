@@ -45,7 +45,13 @@ const superAdminLoginService = {
     const stored = db.prepare('SELECT * FROM super_admin_tokens WHERE token = ?').get(refreshToken)
     if (!stored) throw { status: 403, message: 'Invalid refresh token' }
 
-    const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret)
+    let decoded
+    try {
+      decoded = jwt.verify(refreshToken, config.jwt.refreshSecret)
+    } catch (_) {
+      db.prepare('DELETE FROM super_admin_tokens WHERE token = ?').run(refreshToken)
+      throw { status: 401, message: 'Invalid or expired refresh token' }
+    }
     const { accessToken, refreshToken: newRefresh } = generateTokens(decoded.id, decoded.phone)
 
     db.prepare('DELETE FROM super_admin_tokens WHERE token = ?').run(refreshToken)
@@ -72,6 +78,7 @@ const superAdminLoginService = {
 
   async changePassword(adminPhone, currentPassword, newPassword) {
     const admin = SuperAdminModel.findByPhone(adminPhone)
+    if (!admin) throw { status: 404, message: 'Super admin not found' }
     const isMatch = await bcrypt.compare(currentPassword, admin.password)
     if (!isMatch) throw { status: 400, message: 'Current password is incorrect' }
     const hash = await bcrypt.hash(newPassword, 10)

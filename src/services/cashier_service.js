@@ -27,7 +27,7 @@ const cashierService = {
 
     const hash = await bcrypt.hash(password, 10)
     const id   = uuidv4()
-    CashierModel.create({ id, ownerId, name, phone, password: hash, plainPassword: password })
+    CashierModel.create({ id, ownerId, name, phone, password: hash })
     return CashierModel.findById(id)
   },
 
@@ -62,7 +62,7 @@ const cashierService = {
       throw { status: 404, message: 'Cashier not found' }
     }
     const hash = await bcrypt.hash(password, 10)
-    CashierModel.updatePassword(id, hash, password)
+    CashierModel.updatePassword(id, hash)
     return CashierModel.findById(id)
   },
 }

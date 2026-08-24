@@ -31,16 +31,6 @@ const superAdminManageController = {
     }
   },
 
-  // GET /api/super/admins/:id/password
-  getPassword(req, res, next) {
-    try {
-      const password = superAdminManageService.getPassword(req.params.id)
-      res.json({ success: true, data: { password } })
-    } catch (err) {
-      next(err)
-    }
-  },
-
   // POST /api/super/admins
   async create(req, res, next) {
     try {

@@ -16,19 +16,15 @@ const AdminManageModel = {
     `).get(id)
   },
 
-  findByIdWithPassword(id) {
-    return db.prepare('SELECT * FROM admins WHERE id = ?').get(id)
-  },
-
   findByPhone(phone) {
     return db.prepare('SELECT id FROM admins WHERE phone = ?').get(phone)
   },
 
-  create({ id, name, phone, password, plainPassword }) {
+  create({ id, name, phone, password }) {
     return db.prepare(`
-      INSERT INTO admins (id, name, phone, password, plain_password, status)
-      VALUES (?, ?, ?, ?, ?, 'Active')
-    `).run(id, name, phone, password, plainPassword)
+      INSERT INTO admins (id, name, phone, password, status)
+      VALUES (?, ?, ?, ?, 'Active')
+    `).run(id, name, phone, password)
   },
 
   update(id, { name, phone }) {
@@ -38,7 +34,11 @@ const AdminManageModel = {
   },
 
   delete(id) {
-    return db.prepare('DELETE FROM admins WHERE id = ?').run(id)
+    const tx = db.transaction((adminId) => {
+      db.prepare('DELETE FROM users WHERE admin_id = ?').run(adminId)
+      return db.prepare('DELETE FROM admins WHERE id = ?').run(adminId)
+    })
+    return tx(id)
   },
 
   updateStatus(id, status) {
@@ -47,28 +47,36 @@ const AdminManageModel = {
     `).run(status, id)
   },
 
-  updatePassword(id, hashedPassword, plainPassword) {
+  updatePassword(id, hashedPassword) {
     return db.prepare(`
-      UPDATE admins SET password = ?, plain_password = ?, updated_at = datetime('now') WHERE id = ?
-    `).run(hashedPassword, plainPassword, id)
+      UPDATE admins SET password = ?, updated_at = datetime('now') WHERE id = ?
+    `).run(hashedPassword, id)
   },
 
   bulkDelete(ids) {
-    const del = db.prepare('DELETE FROM admins WHERE id = ?')
-    const tx  = db.transaction((list) => list.forEach(id => del.run(id)))
-    tx(ids)
+    const tx = db.transaction((list) => {
+      const delUsers = db.prepare('DELETE FROM users WHERE admin_id = ?')
+      const delAdmins = db.prepare('DELETE FROM admins WHERE id = ?')
+      let deleted = 0
+      list.forEach(id => {
+        delUsers.run(id)
+        deleted += delAdmins.run(id).changes
+      })
+      return { deleted }
+    })
+    return tx(ids)
   },
 
   bulkUpdateStatus(ids, status) {
     const upd = db.prepare(`UPDATE admins SET status = ?, updated_at = datetime('now') WHERE id = ?`)
-    const tx  = db.transaction((list) => list.forEach(id => upd.run(status, id)))
-    tx(ids)
+    const tx  = db.transaction((list) => list.reduce((updated, id) => updated + upd.run(status, id).changes, 0))
+    return { updated: tx(ids) }
   },
 
-  bulkUpdatePassword(ids, hashedPassword, plainPassword) {
-    const upd = db.prepare(`UPDATE admins SET password = ?, plain_password = ?, updated_at = datetime('now') WHERE id = ?`)
-    const tx  = db.transaction((list) => list.forEach(id => upd.run(hashedPassword, plainPassword, id)))
-    tx(ids)
+  bulkUpdatePassword(ids, hashedPassword) {
+    const upd = db.prepare(`UPDATE admins SET password = ?, updated_at = datetime('now') WHERE id = ?`)
+    const tx  = db.transaction((list) => list.reduce((updated, id) => updated + upd.run(hashedPassword, id).changes, 0))
+    return { updated: tx(ids) }
   },
 
   getStats() {

@@ -3,7 +3,7 @@ const db = require('../database/db')
 const CutterModel = {
   findAllByOwner(ownerId) {
     return db.prepare(
-      `SELECT id, owner_id, name, phone, plain_password, status, created_at
+      `SELECT id, owner_id, name, phone, status, created_at
        FROM cutters
        WHERE owner_id = ?
        ORDER BY created_at DESC`
@@ -12,7 +12,7 @@ const CutterModel = {
 
   findById(id) {
     return db.prepare(
-      `SELECT id, owner_id, name, phone, plain_password, status, created_at
+      `SELECT id, owner_id, name, phone, status, created_at
        FROM cutters WHERE id = ?`
     ).get(id)
   },
@@ -21,11 +21,11 @@ const CutterModel = {
     return db.prepare('SELECT * FROM cutters WHERE phone = ?').get(phone)
   },
 
-  create({ id, ownerId, name, phone, password, plainPassword }) {
+  create({ id, ownerId, name, phone, password }) {
     return db.prepare(
-      `INSERT INTO cutters (id, owner_id, name, phone, password, plain_password, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'Active')`
-    ).run(id, ownerId, name, phone, password, plainPassword)
+      `INSERT INTO cutters (id, owner_id, name, phone, password, status)
+       VALUES (?, ?, ?, ?, ?, 'Active')`
+     ).run(id, ownerId, name, phone, password)
   },
 
   updateStatus(id, status) {
@@ -40,10 +40,10 @@ const CutterModel = {
     ).run(name, phone, id)
   },
 
-  updatePassword(id, hash, plainPassword) {
+  updatePassword(id, hash) {
     return db.prepare(
-      `UPDATE cutters SET password = ?, plain_password = ?, updated_at = datetime('now') WHERE id = ?`
-    ).run(hash, plainPassword, id)
+      `UPDATE cutters SET password = ?, updated_at = datetime('now') WHERE id = ?`
+    ).run(hash, id)
   },
 }
 

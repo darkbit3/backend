@@ -7,10 +7,18 @@ const { validate }               = require('../middleware/validate')
 // All routes are super-admin protected
 router.use(authenticateSuperAdmin)
 
+const validateBulkIds = (req, res, next) => {
+  const { ids } = req.body
+  if (!Array.isArray(ids) || ids.length === 0 || ids.some(id => typeof id !== 'string' || !id.trim()) || new Set(ids).size !== ids.length) {
+    return res.status(400).json({ success: false, message: 'ids must be a non-empty array of unique strings' })
+  }
+  next()
+}
+
 // Bulk operations (must be before /:id routes)
-router.post('/bulk/delete',         superAdminManageController.bulkDelete)
-router.post('/bulk/status',         superAdminManageController.bulkStatus)
-router.post('/bulk/reset-password', superAdminManageController.bulkResetPassword)
+router.post('/bulk/delete', validateBulkIds, superAdminManageController.bulkDelete)
+router.post('/bulk/status', validateBulkIds, validate({ status: { required: true, enum: ['Active', 'Inactive'] } }), superAdminManageController.bulkStatus)
+router.post('/bulk/reset-password', validateBulkIds, validate({ password: { required: true, minLength: 6 } }), superAdminManageController.bulkResetPassword)
 
 // Stats
 router.get('/stats', superAdminManageController.getStats)
@@ -18,7 +26,6 @@ router.get('/stats', superAdminManageController.getStats)
 // CRUD
 router.get('/',             superAdminManageController.getAll)
 router.get('/:id',          superAdminManageController.getOne)
-router.get('/:id/password', superAdminManageController.getPassword)
 
 router.post('/',
   validate({

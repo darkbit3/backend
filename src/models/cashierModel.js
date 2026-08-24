@@ -5,7 +5,7 @@ const CashierModel = {
   findAllByOwner(ownerId) {
     return db
       .prepare(
-        `SELECT id, owner_id, name, phone, plain_password, status, created_at
+        `SELECT id, owner_id, name, phone, status, created_at
          FROM cashiers
          WHERE owner_id = ?
          ORDER BY created_at DESC`
@@ -16,7 +16,7 @@ const CashierModel = {
   findById(id) {
     return db
       .prepare(
-        `SELECT id, owner_id, name, phone, plain_password, status, created_at
+        `SELECT id, owner_id, name, phone, status, created_at
          FROM cashiers WHERE id = ?`
       )
       .get(id)
@@ -26,13 +26,13 @@ const CashierModel = {
     return db.prepare('SELECT * FROM cashiers WHERE phone = ?').get(phone)
   },
 
-  create({ id, ownerId, name, phone, password, plainPassword }) {
+  create({ id, ownerId, name, phone, password }) {
     return db
       .prepare(
-        `INSERT INTO cashiers (id, owner_id, name, phone, password, plain_password, status)
-         VALUES (?, ?, ?, ?, ?, ?, 'Active')`
+          `INSERT INTO cashiers (id, owner_id, name, phone, password, status)
+          VALUES (?, ?, ?, ?, ?, 'Active')`
       )
-      .run(id, ownerId, name, phone, password, plainPassword)
+        .run(id, ownerId, name, phone, password)
   },
 
   updateStatus(id, status) {
@@ -47,10 +47,10 @@ const CashierModel = {
       .run(name, phone, id)
   },
 
-  updatePassword(id, hash, plainPassword) {
+  updatePassword(id, hash) {
     return db
-      .prepare(`UPDATE cashiers SET password = ?, plain_password = ?, updated_at = datetime('now') WHERE id = ?`)
-      .run(hash, plainPassword, id)
+      .prepare(`UPDATE cashiers SET password = ?, updated_at = datetime('now') WHERE id = ?`)
+      .run(hash, id)
   },
 }
 

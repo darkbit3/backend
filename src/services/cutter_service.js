@@ -26,7 +26,7 @@ const cutterService = {
     }
     const hash = await bcrypt.hash(password, 10)
     const id   = uuid()
-    CutterModel.create({ id, ownerId, name, phone, password: hash, plainPassword: password })
+    CutterModel.create({ id, ownerId, name, phone, password: hash })
     return CutterModel.findById(id)
   },
 
@@ -57,7 +57,7 @@ const cutterService = {
       throw { status: 404, message: 'Cutter not found' }
     }
     const hash = await bcrypt.hash(password, 10)
-    CutterModel.updatePassword(id, hash, password)
+    CutterModel.updatePassword(id, hash)
     return CutterModel.findById(id)
   },
 }

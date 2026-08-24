@@ -49,7 +49,13 @@ const adminLoginService = {
     const stored = TokenModel.findByToken(refreshToken)
     if (!stored) throw { status: 403, message: 'Invalid refresh token' }
 
-    const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret)
+    let decoded
+    try {
+      decoded = jwt.verify(refreshToken, config.jwt.refreshSecret)
+    } catch (_) {
+      TokenModel.delete(refreshToken)
+      throw { status: 401, message: 'Invalid or expired refresh token' }
+    }
     const { accessToken, refreshToken: newRefresh } = generateTokens(decoded.id, decoded.phone)
 
     TokenModel.delete(refreshToken)

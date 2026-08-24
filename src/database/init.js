@@ -6,8 +6,8 @@ const db             = require('./db')
 const config         = require('../config/config')
 
 async function seedAdmin() {
-  const phone    = config.admin.phone    || '0912345678'
-  const password = config.admin.password || 'admin123'
+  const phone    = config.admin.phone
+  const password = config.admin.password
   const hash     = await bcrypt.hash(password, 10)
 
   const existing = db.prepare('SELECT id FROM admins WHERE phone = ?').get(phone)
@@ -27,21 +27,25 @@ async function seedAdmin() {
 }
 
 async function seedSuperAdmin() {
-  const phone    = process.env.SUPER_ADMIN_PHONE    || 'yonas'
-  const password = process.env.SUPER_ADMIN_PASSWORD || 'Kale@1513'
+  const phone    = process.env.SUPER_ADMIN_PHONE
+  const password = process.env.SUPER_ADMIN_PASSWORD
+  const name     = process.env.SUPER_ADMIN_NAME
+  if (!phone || !password || !name) {
+    throw new Error('SUPER_ADMIN_PHONE, SUPER_ADMIN_PASSWORD, and SUPER_ADMIN_NAME must be set')
+  }
   const hash     = await bcrypt.hash(password, 10)
 
-  const existing = db.prepare('SELECT id FROM super_admins WHERE phone = ? OR LOWER(name) = ?').get(phone, 'yonas')
+  const existing = db.prepare('SELECT id FROM super_admins WHERE phone = ? OR LOWER(name) = LOWER(?)').get(phone, name)
 
   if (!existing) {
     db.prepare(
       'INSERT INTO super_admins (id, phone, password, name) VALUES (?, ?, ?, ?)'
-    ).run(uuidv4(), phone, hash, 'yonas')
+    ).run(uuidv4(), phone, hash, name)
     console.log(`[DB] Super admin created — username: ${phone}`)
   } else {
     db.prepare(
-      `UPDATE super_admins SET phone = 'yonas', name = 'yonas', password = ?, updated_at = datetime('now') WHERE id = ?`
-    ).run(hash, existing.id)
+      `UPDATE super_admins SET phone = ?, name = ?, password = ?, updated_at = datetime('now') WHERE id = ?`
+    ).run(phone, name, hash, existing.id)
     console.log(`[DB] Super admin password synced — username: ${phone}`)
   }
 }
