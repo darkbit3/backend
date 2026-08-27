@@ -23,7 +23,7 @@ const app = express()
 
 // ── Security middleware ────────────────────────────────────────────────────
 app.use(helmet())
-app.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true)
     if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
@@ -41,7 +41,9 @@ app.use(cors({
     return callback(new Error(`CORS blocked: ${origin}`))
   },
   credentials: true,
-}))
+}
+app.use(cors(corsOptions))
+app.options('*', cors(corsOptions))
 
 // ── Rate limiting ──────────────────────────────────────────────────────────
 const limiter = rateLimit({
