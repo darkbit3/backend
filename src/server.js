@@ -60,10 +60,18 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, message: 'Too many login attempts, please try again later.' },
 })
+const chatLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests, please try again later.' },
+})
 
 app.use('/api/auth/login',        authLimiter)
 app.use('/api/user-auth/login',   authLimiter)
 app.use('/api/super-auth/login',  authLimiter)
+app.use('/api/chat',              chatLimiter)
 app.use(limiter)
 
 // ── Body parsing ───────────────────────────────────────────────────────────
@@ -131,14 +139,19 @@ async function start() {
   createTables()
   await seedAdmin()
   await seedSuperAdmin()
-  app.listen(config.port, () => {
-    console.log(`[SERVER] Running on http://localhost:${config.port} (${config.nodeEnv})`)
+  return new Promise((resolve) => {
+    const server = app.listen(config.port, () => {
+      console.log(`[SERVER] Running on http://localhost:${config.port} (${config.nodeEnv})`)
+      resolve(server)
+    })
   })
 }
 
-start().catch((err) => {
-  console.error('[SERVER] Failed to start:', err)
-  process.exit(1)
-})
+if (require.main === module) {
+  start().catch((err) => {
+    console.error('[SERVER] Failed to start:', err)
+    process.exit(1)
+  })
+}
 
 module.exports = app
