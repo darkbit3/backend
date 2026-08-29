@@ -139,9 +139,11 @@ async function start() {
   createTables()
   await seedAdmin()
   await seedSuperAdmin()
+
+  const port = Number(process.env.PORT) || config.port || 5000
   return new Promise((resolve) => {
-    const server = app.listen(config.port, () => {
-      console.log(`[SERVER] Running on http://localhost:${config.port} (${config.nodeEnv})`)
+    const server = app.listen(port, '0.0.0.0', () => {
+      console.log(`[SERVER] Running on http://0.0.0.0:${port} (${config.nodeEnv})`)
       resolve(server)
     })
   })
