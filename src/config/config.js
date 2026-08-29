@@ -24,7 +24,7 @@ module.exports = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   },
   db: {
-    path: process.env.DB_PATH || './data/database.sqlite',
+    url: process.env.DATABASE_URL || process.env.DB_URL || process.env.DB_PATH || 'postgresql://neondb_owner:npg_R1LMbTEJ9tXH@ep-spring-art-a5lwohif-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
   },
   admin: {
     phone: requiredValue('ADMIN_PHONE'),
