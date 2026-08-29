@@ -14,6 +14,8 @@ function requiredValue(name) {
   return value
 }
 
+const defaultPostgresUrl = 'postgresql://neondb_owner:npg_R1LMbTEJ9tXH@ep-spring-art-a5lwohif-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
+
 module.exports = {
   port: process.env.PORT || 5000,
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -24,7 +26,10 @@ module.exports = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   },
   db: {
-    url: process.env.DATABASE_URL || process.env.DB_URL || process.env.DB_PATH || 'postgresql://neondb_owner:npg_R1LMbTEJ9tXH@ep-spring-art-a5lwohif-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
+    path: process.env.DB_PATH || './data/database.sqlite',
+    url: process.env.DB_PATH
+      ? process.env.DB_PATH
+      : (process.env.DATABASE_URL || process.env.DB_URL || defaultPostgresUrl),
   },
   admin: {
     phone: requiredValue('ADMIN_PHONE'),

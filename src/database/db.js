@@ -1,93 +1,105 @@
-const { Pool } = require('pg')
-const deasync = require('deasync')
+const path = require('path')
 const config = require('../config/config')
 
-const connectionString = config.db.url
-const pool = new Pool({
-  connectionString,
-  ssl: connectionString.includes('neon.tech') || connectionString.includes('sslmode=require')
-    ? { rejectUnauthorized: false }
-    : false,
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
-})
+const usePostgres = Boolean(process.env.DATABASE_URL || process.env.DB_URL || (process.env.DB_PATH ? false : true))
 
-pool.on('error', (err) => {
-  console.error('[DB] Unexpected PostgreSQL pool error:', err)
-})
+if (usePostgres) {
+  const { Pool } = require('pg')
+  const deasync = require('deasync')
 
-function normalizeSql(sql) {
-  return String(sql)
-    .replace(/datetime\(\s*['\"]now['\"]\s*\)/gi, 'NOW()')
-    .replace(/datetime\(\s*['\"]now['\"]\s*\)/gi, 'NOW()')
-    .replace(/\?/g, (match, offset, full) => {
-      const before = full.slice(0, offset)
-      const questionCount = (before.match(/\?/g) || []).length + 1
-      return `$${questionCount}`
-    })
-}
+  const connectionString = config.db.url
+  const pool = new Pool({
+    connectionString,
+    ssl: connectionString.includes('neon.tech') || connectionString.includes('sslmode=require')
+      ? { rejectUnauthorized: false }
+      : false,
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+  })
 
-function runQuery(sql, params = []) {
-  const text = normalizeSql(sql)
-  const done = { value: false }
-  let result
-  let err
+  pool.on('error', (err) => {
+    console.error('[DB] Unexpected PostgreSQL pool error:', err)
+  })
 
-  pool.query(text, params)
-    .then((res) => {
-      result = res
-      done.value = true
-    })
-    .catch((e) => {
-      err = e
-      done.value = true
-    })
+  function normalizeSql(sql) {
+    return String(sql)
+      .replace(/datetime\(\s*['\"]now['\"]\s*\)/gi, 'NOW()')
+      .replace(/CURRENT_TIMESTAMP/gi, 'NOW()')
+      .replace(/\?/g, (match, offset, full) => {
+        const before = full.slice(0, offset)
+        const questionCount = (before.match(/\?/g) || []).length + 1
+        return `$${questionCount}`
+      })
+  }
 
-  deasync.loopWhile(() => !done.value)
+  function runQuery(sql, params = []) {
+    const text = normalizeSql(sql)
+    const done = { value: false }
+    let result
+    let err
 
-  if (err) throw err
-  return result
-}
+    pool.query(text, params)
+      .then((res) => {
+        result = res
+        done.value = true
+      })
+      .catch((e) => {
+        err = e
+        done.value = true
+      })
 
-function createStatement(sql) {
-  return {
-    get: (...args) => {
-      const result = runQuery(sql, args)
-      return result.rows?.[0] ?? undefined
-    },
-    all: (...args) => {
-      const result = runQuery(sql, args)
-      return result.rows ?? []
-    },
-    run: (...args) => {
-      const result = runQuery(sql, args)
-      return {
-        changes: result.rowCount ?? 0,
-        lastInsertRowid: result.rows?.[0]?.id ?? null,
+    deasync.loopWhile(() => !done.value)
+
+    if (err) throw err
+    return result
+  }
+
+  function createStatement(sql) {
+    return {
+      get: (...args) => {
+        const result = runQuery(sql, args)
+        return result.rows?.[0] ?? undefined
+      },
+      all: (...args) => {
+        const result = runQuery(sql, args)
+        return result.rows ?? []
+      },
+      run: (...args) => {
+        const result = runQuery(sql, args)
+        return {
+          changes: result.rowCount ?? 0,
+          lastInsertRowid: result.rows?.[0]?.id ?? null,
+        }
+      },
+    }
+  }
+
+  module.exports = {
+    prepare: (sql) => createStatement(sql),
+    exec: (sql) => {
+      const statements = String(sql)
+        .split(';')
+        .map((statement) => statement.trim())
+        .filter(Boolean)
+
+      for (const statement of statements) {
+        runQuery(statement)
       }
+
+      return { changes: 0 }
     },
+    transaction: (callback) => (...args) => callback(...args),
+    close: () => pool.end(),
+    query: (sql, params = []) => runQuery(sql, params),
+    raw: (sql, params = []) => runQuery(sql, params),
   }
 }
 
-const db = {
-  prepare: (sql) => createStatement(sql),
-  exec: (sql) => {
-    const statements = String(sql)
-      .split(';')
-      .map((statement) => statement.trim())
-      .filter(Boolean)
-
-    for (const statement of statements) {
-      runQuery(statement)
-    }
-
-    return { changes: 0 }
-  },
-  transaction: (callback) => (...args) => callback(...args),
-  close: () => pool.end(),
-  query: (sql, params = []) => runQuery(sql, params),
-  raw: (sql, params = []) => runQuery(sql, params),
-}
+const Database = require('better-sqlite3')
+const dbPath = path.resolve(__dirname, '../../', config.db.path)
+const db = new Database(dbPath)
+db.pragma('journal_mode = WAL')
+db.pragma('foreign_keys = ON')
 
 module.exports = db
