@@ -151,3 +151,34 @@ test('super admin-created group appears for invited admin and shows inviter info
   assert.equal(json.data[0].name, 'Daily Ops')
   assert.equal(json.data[0].invitedBy, 'Main Super Admin')
 })
+
+test('group creation and group message history are stored in the database', async () => {
+  db.prepare('DELETE FROM chat_group_members').run()
+  db.prepare('DELETE FROM chat_group_messages').run()
+  db.prepare('DELETE FROM chat_groups').run()
+
+  const superAdminId = crypto.randomUUID()
+  const adminMemberId = crypto.randomUUID()
+  db.prepare('INSERT INTO super_admins (id, phone, password, name, status) VALUES (?, ?, ?, ?, ?)')
+    .run(superAdminId, '0900000200', 'hashed-pass', 'Persist Super Admin', 'Active')
+  db.prepare('INSERT INTO admins (id, phone, password, name, status) VALUES (?, ?, ?, ?, ?)')
+    .run(adminMemberId, '0900000201', 'hashed-pass', 'Persist Admin', 'Active')
+
+  const groupId = crypto.randomUUID()
+  db.prepare('INSERT INTO chat_groups (id, name, description, created_by, created_at) VALUES (?, ?, ?, ?, ?)')
+    .run(groupId, 'Persist Group', 'Group history test', superAdminId, new Date().toISOString())
+  db.prepare('INSERT INTO chat_group_members (id, group_id, user_id, user_role, joined_at) VALUES (?, ?, ?, ?, ?)')
+    .run(crypto.randomUUID(), groupId, adminMemberId, 'admin', new Date().toISOString())
+  db.prepare('INSERT INTO chat_group_messages (id, group_id, sender_id, sender_role, message, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(crypto.randomUUID(), groupId, superAdminId, 'super_admin', 'Saved history message', new Date().toISOString())
+
+  const savedGroup = db.prepare('SELECT * FROM chat_groups WHERE id = ?').get(groupId)
+  const savedMember = db.prepare('SELECT * FROM chat_group_members WHERE group_id = ? AND user_id = ?').get(groupId, adminMemberId)
+  const savedMessage = db.prepare('SELECT * FROM chat_group_messages WHERE group_id = ?').get(groupId)
+
+  assert.ok(savedGroup)
+  assert.equal(savedGroup.name, 'Persist Group')
+  assert.ok(savedMember)
+  assert.ok(savedMessage)
+  assert.equal(savedMessage.message, 'Saved history message')
+})
