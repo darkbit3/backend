@@ -6,13 +6,14 @@ const AdminModel         = require('../models/adminModel')
 const TokenModel         = require('../models/tokenModel')
 
 function generateTokens(adminId, phone) {
+  const payload = { id: adminId, phone, type: 'admin' }
   const accessToken = jwt.sign(
-    { id: adminId, phone },
+    payload,
     config.jwt.secret,
     { expiresIn: config.jwt.expiresIn }
   )
   const refreshToken = jwt.sign(
-    { id: adminId, phone },
+    payload,
     config.jwt.refreshSecret,
     { expiresIn: config.jwt.refreshExpiresIn }
   )

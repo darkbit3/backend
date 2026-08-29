@@ -56,7 +56,7 @@ router.get('/groups', (req, res, next) => {
   try {
     const decoded = attachDecodedUser(req)
     if (decoded.type === 'super_admin') return chatController.getGroupsForSuperAdmin(req, res, next)
-    if (decoded.type === 'admin') return chatController.getGroupsForAdmin(req, res, next)
+    if (decoded.type === 'admin' || !decoded.type) return chatController.getGroupsForAdmin(req, res, next)
     return res.status(403).json({ success: false, message: 'Groups are only available for admin and super admin roles' })
   } catch (err) {
     return res.status(401).json({ success: false, message: err.message || 'Invalid token' })
@@ -68,7 +68,7 @@ router.get('/groups/:groupId/messages', (req, res, next) => {
   try {
     const decoded = attachDecodedUser(req)
     if (decoded.type === 'super_admin') return chatController.getGroupMessagesForSuperAdmin(req, res, next)
-    if (decoded.type === 'admin') return chatController.getGroupMessagesForAdmin(req, res, next)
+    if (decoded.type === 'admin' || !decoded.type) return chatController.getGroupMessagesForAdmin(req, res, next)
     return res.status(403).json({ success: false, message: 'Group messages are only available for admin and super admin roles' })
   } catch (err) {
     return res.status(401).json({ success: false, message: err.message || 'Invalid token' })
@@ -78,7 +78,7 @@ router.post('/groups/:groupId/send', (req, res, next) => {
   try {
     const decoded = attachDecodedUser(req)
     if (decoded.type === 'super_admin') return chatController.sendGroupMessageForSuperAdmin(req, res, next)
-    if (decoded.type === 'admin') return chatController.sendGroupMessageForAdmin(req, res, next)
+    if (decoded.type === 'admin' || !decoded.type) return chatController.sendGroupMessageForAdmin(req, res, next)
     return res.status(403).json({ success: false, message: 'Group messages are only available for admin and super admin roles' })
   } catch (err) {
     return res.status(401).json({ success: false, message: err.message || 'Invalid token' })

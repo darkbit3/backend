@@ -5,6 +5,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const express = require('express')
 const jwt = require('jsonwebtoken')
+const bcrypt = require('bcryptjs')
 
 process.env.NODE_ENV = 'test'
 process.env.JWT_SECRET = 'test-access-secret-that-is-at-least-32-characters-long'
@@ -20,6 +21,7 @@ const db = require('../src/database/db')
 const { createTables } = require('../src/database/schema')
 const chatRoutes = require('../src/routes/chat_route')
 const errorHandler = require('../src/middleware/errorHandler')
+const adminLoginService = require('../src/services/admin_login_service')
 
 createTables()
 
@@ -57,6 +59,23 @@ async function request(app, path, options = {}) {
     await new Promise(resolve => server.close(resolve))
   }
 }
+
+test('admin login tokens include the admin role for chat access', async () => {
+  const adminPhone = '0900000999'
+  const adminId = crypto.randomUUID()
+  const password = 'admin-role-check-password'
+  const hash = await bcrypt.hash(password, 10)
+
+  db.prepare('DELETE FROM admins WHERE phone = ?').run(adminPhone)
+  db.prepare('INSERT INTO admins (id, phone, password, name, status) VALUES (?, ?, ?, ?, ?)')
+    .run(adminId, adminPhone, hash, 'Role Check Admin', 'Active')
+
+  const result = await adminLoginService.login(adminPhone, password)
+  const decoded = jwt.decode(result.accessToken)
+
+  assert.equal(decoded.type, 'admin')
+  assert.equal(decoded.phone, adminPhone)
+})
 
 test('chat people list returns database users and supports search', async () => {
   db.prepare('DELETE FROM chat_messages').run()
