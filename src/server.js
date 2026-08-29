@@ -18,6 +18,7 @@ const creditRoutes          = require('./routes/credit_route')
 const superAuthRoutes       = require('./routes/super_admin_login_route')
 const superManageRoutes     = require('./routes/super_admin_manage_route')
 const cutterRoutes          = require('./routes/cutter_route')
+const chatRoutes            = require('./routes/chat_route')
 
 const app = express()
 
@@ -85,6 +86,7 @@ app.use('/api/credits',     creditRoutes)
 app.use('/api/super-auth',   superAuthRoutes)
 app.use('/api/super/admins', superManageRoutes)
 app.use('/api/cutters',      cutterRoutes)
+app.use('/api/chat',         chatRoutes)
 
 // ── Root ───────────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {

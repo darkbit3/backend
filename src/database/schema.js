@@ -30,6 +30,18 @@ function createTables() {
     );
   `)
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id            TEXT PRIMARY KEY,
+      sender_id     TEXT NOT NULL,
+      sender_role   TEXT NOT NULL CHECK(sender_role IN ('admin', 'super_admin', 'user')),
+      receiver_id   TEXT NOT NULL,
+      receiver_role TEXT NOT NULL CHECK(receiver_role IN ('admin', 'super_admin', 'user')),
+      message       TEXT NOT NULL,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `)
+
   // Migrate existing DB — add plain_password and account_type columns if they don't exist yet
   try {
     db.exec(`ALTER TABLE users ADD COLUMN plain_password TEXT;`)
