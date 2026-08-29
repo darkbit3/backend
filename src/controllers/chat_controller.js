@@ -104,9 +104,25 @@ function formatGroupRow(group) {
     name: group.name,
     description: group.description || '',
     createdBy: group.created_by,
+    invitedBy: group.invited_by || group.created_by_name || 'Super Admin',
     createdAt: group.created_at,
     memberCount: Number(group.member_count || 0),
   }
+}
+
+function getGroupMembers(groupId) {
+  return db.prepare(`
+    SELECT gm.user_id, gm.user_role, a.name AS admin_name, u.name AS user_name
+    FROM chat_group_members gm
+    LEFT JOIN admins a ON a.id = gm.user_id AND gm.user_role = 'admin'
+    LEFT JOIN users u ON u.id = gm.user_id AND gm.user_role = 'user'
+    WHERE gm.group_id = ?
+    ORDER BY gm.joined_at ASC
+  `).all(groupId).map((member) => ({
+    id: member.user_id,
+    role: member.user_role,
+    name: member.user_role === 'admin' ? member.admin_name : member.user_name,
+  }))
 }
 
 const chatController = {
@@ -276,28 +292,46 @@ const chatController = {
     try {
       const groups = db.prepare(`
         SELECT g.id, g.name, g.description, g.created_by, g.created_at,
-               COUNT(m.id) AS member_count
+               COUNT(m.id) AS member_count,
+               sa.name AS created_by_name
         FROM chat_groups g
         LEFT JOIN chat_group_members m ON m.group_id = g.id
+        LEFT JOIN super_admins sa ON sa.id = g.created_by
         WHERE g.created_by = ?
-        GROUP BY g.id, g.name, g.description, g.created_by, g.created_at
+        GROUP BY g.id, g.name, g.description, g.created_by, g.created_at, sa.name
         ORDER BY g.created_at DESC
       `).all(req.superAdmin.id)
 
-      const data = groups.map(group => ({
+      const data = groups.map((group) => ({
         ...formatGroupRow(group),
-        members: db.prepare(`
-          SELECT gm.user_id, gm.user_role, a.name AS admin_name, u.name AS user_name
-          FROM chat_group_members gm
-          LEFT JOIN admins a ON a.id = gm.user_id AND gm.user_role = 'admin'
-          LEFT JOIN users u ON u.id = gm.user_id AND gm.user_role = 'user'
-          WHERE gm.group_id = ?
-          ORDER BY gm.joined_at ASC
-        `).all(group.id).map(member => ({
-          id: member.user_id,
-          role: member.user_role,
-          name: member.user_role === 'admin' ? member.admin_name : member.user_name,
-        })),
+        members: getGroupMembers(group.id),
+      }))
+
+      res.json({ success: true, data })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  getGroupsForAdmin(req, res, next) {
+    try {
+      const groups = db.prepare(`
+        SELECT g.id, g.name, g.description, g.created_by, g.created_at,
+               COUNT(m.id) AS member_count,
+               sa.name AS invited_by
+        FROM chat_group_members gm
+        JOIN chat_groups g ON g.id = gm.group_id
+        LEFT JOIN chat_group_members m ON m.group_id = g.id
+        LEFT JOIN super_admins sa ON sa.id = g.created_by
+        WHERE gm.user_id = ? AND gm.user_role = 'admin'
+        GROUP BY g.id, g.name, g.description, g.created_by, g.created_at, sa.name
+        ORDER BY g.created_at DESC
+      `).all(req.admin.id)
+
+      const data = groups.map((group) => ({
+        ...formatGroupRow(group),
+        invitedBy: group.invited_by || 'Super Admin',
+        members: getGroupMembers(group.id),
       }))
 
       res.json({ success: true, data })
@@ -338,29 +372,20 @@ const chatController = {
 
       const created = db.prepare(`
         SELECT g.id, g.name, g.description, g.created_by, g.created_at,
-               COUNT(m.id) AS member_count
+               COUNT(m.id) AS member_count,
+               sa.name AS created_by_name
         FROM chat_groups g
         LEFT JOIN chat_group_members m ON m.group_id = g.id
+        LEFT JOIN super_admins sa ON sa.id = g.created_by
         WHERE g.id = ?
-        GROUP BY g.id, g.name, g.description, g.created_by, g.created_at
+        GROUP BY g.id, g.name, g.description, g.created_by, g.created_at, sa.name
       `).get(groupId)
 
       res.status(201).json({
         success: true,
         data: {
           ...formatGroupRow(created),
-          members: db.prepare(`
-            SELECT gm.user_id, gm.user_role, a.name AS admin_name, u.name AS user_name
-            FROM chat_group_members gm
-            LEFT JOIN admins a ON a.id = gm.user_id AND gm.user_role = 'admin'
-            LEFT JOIN users u ON u.id = gm.user_id AND gm.user_role = 'user'
-            WHERE gm.group_id = ?
-            ORDER BY gm.joined_at ASC
-          `).all(groupId).map(member => ({
-            id: member.user_id,
-            role: member.user_role,
-            name: member.user_role === 'admin' ? member.admin_name : member.user_name,
-          })),
+          members: getGroupMembers(groupId),
         },
       })
     } catch (err) {
@@ -397,6 +422,38 @@ const chatController = {
     }
   },
 
+  getGroupMessagesForAdmin(req, res, next) {
+    try {
+      const { groupId } = req.params
+      const membership = db.prepare(`
+        SELECT id FROM chat_group_members WHERE group_id = ? AND user_id = ? AND user_role = 'admin'
+      `).get(groupId, req.admin.id)
+
+      if (!membership) {
+        return res.status(404).json({ success: false, message: 'Group not found or you are not a member' })
+      }
+
+      const rows = db.prepare(`
+        SELECT id, sender_id, sender_role, message, created_at
+        FROM chat_group_messages
+        WHERE group_id = ?
+        ORDER BY created_at ASC
+      `).all(groupId)
+
+      const data = rows.map((msg) => ({
+        id: msg.id,
+        senderId: msg.sender_id,
+        senderRole: msg.sender_role,
+        message: msg.message,
+        createdAt: msg.created_at,
+        isMine: msg.sender_id === req.admin.id && msg.sender_role === 'admin',
+      }))
+      res.json({ success: true, data })
+    } catch (err) {
+      next(err)
+    }
+  },
+
   sendGroupMessageForSuperAdmin(req, res, next) {
     try {
       const { groupId } = req.params
@@ -415,6 +472,42 @@ const chatController = {
         group_id: groupId,
         sender_id: req.superAdmin.id,
         sender_role: 'super_admin',
+        message: String(message).trim(),
+        created_at: new Date().toISOString(),
+      }
+
+      db.prepare(`
+        INSERT INTO chat_group_messages (id, group_id, sender_id, sender_role, message, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(row.id, row.group_id, row.sender_id, row.sender_role, row.message, row.created_at)
+
+      res.status(201).json({ success: true, data: row })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  sendGroupMessageForAdmin(req, res, next) {
+    try {
+      const { groupId } = req.params
+      const { message } = req.body
+      if (!message || !String(message).trim()) {
+        return res.status(400).json({ success: false, message: 'Message text is required' })
+      }
+
+      const membership = db.prepare(`
+        SELECT id FROM chat_group_members WHERE group_id = ? AND user_id = ? AND user_role = 'admin'
+      `).get(groupId, req.admin.id)
+
+      if (!membership) {
+        return res.status(404).json({ success: false, message: 'Group not found or you are not a member' })
+      }
+
+      const row = {
+        id: uuidv4(),
+        group_id: groupId,
+        sender_id: req.admin.id,
+        sender_role: 'admin',
         message: String(message).trim(),
         created_at: new Date().toISOString(),
       }

@@ -102,3 +102,33 @@ test('chat messages return the selected conversation from database', async () =>
   assert.equal(json.data.length, 2)
   assert.equal(json.data.some((m) => m.message === 'Hello owner'), true)
 })
+
+test('super admin-created group appears for invited admin and shows inviter info', async () => {
+  db.prepare('DELETE FROM chat_group_members').run()
+  db.prepare('DELETE FROM chat_group_messages').run()
+  db.prepare('DELETE FROM chat_groups').run()
+  db.prepare('DELETE FROM super_admins').run()
+
+  const superAdminId = crypto.randomUUID()
+  db.prepare('INSERT INTO super_admins (id, phone, password, name, status) VALUES (?, ?, ?, ?, ?)')
+    .run(superAdminId, '0900000100', 'hashed-pass', 'Main Super Admin', 'Active')
+
+  const groupId = crypto.randomUUID()
+  db.prepare('INSERT INTO chat_groups (id, name, description, created_by, created_at) VALUES (?, ?, ?, ?, ?)')
+    .run(groupId, 'Daily Ops', 'Ops update', superAdminId, new Date().toISOString())
+
+  db.prepare('INSERT INTO chat_group_members (id, group_id, user_id, user_role, joined_at) VALUES (?, ?, ?, ?, ?)')
+    .run(crypto.randomUUID(), groupId, adminId, 'admin', new Date().toISOString())
+
+  const response = await request(createApp(), '/api/chat/groups', {
+    method: 'GET',
+    headers: { authorization: `Bearer ${adminToken}` },
+  })
+
+  assert.equal(response.status, 200)
+  const json = await response.json()
+  assert.equal(json.success, true)
+  assert.equal(json.data.length, 1)
+  assert.equal(json.data[0].name, 'Daily Ops')
+  assert.equal(json.data[0].invitedBy, 'Main Super Admin')
+})
