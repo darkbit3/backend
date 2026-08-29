@@ -5,8 +5,8 @@ const { authenticateUser } = require('../middleware/auth')
 const router = express.Router()
 router.use(authenticateUser)
 
-// POST /api/credits/record      — owner/admin issues credit directly
-router.post('/record',         creditController.recordCredit)
+// POST /api/credits — direct credit by owner/manufacturer/reseller
+router.post('/', creditController.create)
 
 // GET  /api/credits/owner/stats  — owner dashboard stats
 router.get('/owner/stats',     creditController.ownerStats)

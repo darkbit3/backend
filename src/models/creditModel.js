@@ -29,18 +29,19 @@ const CreditModel = {
   createFromSale({ saleId, cashierId, ownerId, customer, totalAmount, note }) {
     const id = uuid()
     db.prepare(`
-      INSERT INTO credits (id, sale_id, cashier_id, owner_id, customer, total_amount, total_paid, note, issued_by)
-      VALUES (?, ?, ?, ?, ?, ?, 0, ?, 'cashier')
-    `).run(id, saleId, cashierId, ownerId, customer || 'Unknown', totalAmount, note || null)
+      INSERT INTO credits (id, sale_id, cashier_id, owner_id, customer, total_amount, total_paid, note, issued_by, issued_by_id)
+      VALUES (?, ?, ?, ?, ?, ?, 0, ?, 'cashier', ?)
+    `).run(id, saleId, cashierId, ownerId, customer || 'Unknown', totalAmount, note || null, cashierId || ownerId)
     return CreditModel.findById(id)
   },
 
-  // General create method for owner/admin-issued credits
-  create({ id, sale_id, cashier_id, owner_id, customer, total_amount, total_paid, issued_by, note }) {
+  // Manual credit creation by owner/manufacturer/reseller
+  recordCredit({ ownerId, cashierId = null, customer, totalAmount, note, issuedBy = 'owner', issuedById = ownerId }) {
+    const id = uuid()
     db.prepare(`
-      INSERT INTO credits (id, sale_id, cashier_id, owner_id, customer, total_amount, total_paid, issued_by, note)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, sale_id, cashier_id, owner_id, customer, total_amount, total_paid, issued_by, note)
+      INSERT INTO credits (id, sale_id, cashier_id, owner_id, customer, total_amount, total_paid, note, issued_by, issued_by_id)
+      VALUES (?, NULL, ?, ?, ?, ?, 0, ?, ?, ?)
+    `).run(id, cashierId, ownerId, customer || 'Unknown', totalAmount, note || null, issuedBy, issuedById)
     return CreditModel.findById(id)
   },
 
@@ -107,7 +108,6 @@ const CreditModel = {
       VALUES (?, ?, ?, ?)
     `).run(payId, creditId, amount, note || null)
 
-    // Update total_paid on the credit row
     db.prepare(`
       UPDATE credits
       SET total_paid = total_paid + ?

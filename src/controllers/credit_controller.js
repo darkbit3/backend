@@ -1,6 +1,23 @@
 const creditService = require('../services/credit_service')
 
 const creditController = {
+  // POST /api/credits — direct credit entry by Manufacturer / Reseller owner
+  create(req, res, next) {
+    try {
+      const isOwnerUser = !req.user.owner_id || req.user.owner_id === req.user.id
+      if (!isOwnerUser) {
+        return res.status(403).json({ success: false, message: 'Only owners/manufacturers/resellers can issue direct credit' })
+      }
+
+      const { customer, amount, note } = req.body
+      const data = creditService.recordCredit(req.user.id, { customer, amount, note })
+      res.status(201).json({ success: true, data })
+    } catch (err) {
+      if (err.status) return res.status(err.status).json({ success: false, message: err.message })
+      next(err)
+    }
+  },
+
   // GET /api/credits  — cashier sees own credits
   listMine(req, res, next) {
     try {
@@ -34,18 +51,6 @@ const creditController = {
       const { amount, note } = req.body
       const updated = creditService.addPayment(id, req.user.id, { amount, note })
       res.json({ success: true, data: updated })
-    } catch (err) {
-      if (err.status) return res.status(err.status).json({ success: false, message: err.message })
-      next(err)
-    }
-  },
-
-  // POST /api/credits/record  — owner/admin issues credit directly
-  async recordCredit(req, res, next) {
-    try {
-      const { customer, amount, note } = req.body
-      const result = creditService.recordCredit(req.user, { customer, amount, note })
-      res.json({ success: true, data: result })
     } catch (err) {
       if (err.status) return res.status(err.status).json({ success: false, message: err.message })
       next(err)

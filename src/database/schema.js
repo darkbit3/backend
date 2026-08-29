@@ -131,7 +131,7 @@ function createTables() {
     );
   `)
 
-  // Credits table (created whenever a Credit sale is recorded or issued directly by owner/admin)
+  // Credits table (created whenever a Credit sale is recorded, or an owner issues credit directly)
   db.exec(`
     CREATE TABLE IF NOT EXISTS credits (
       id           TEXT PRIMARY KEY,
@@ -141,13 +141,23 @@ function createTables() {
       customer     TEXT NOT NULL DEFAULT 'Unknown',
       total_amount REAL NOT NULL DEFAULT 0,
       total_paid   REAL NOT NULL DEFAULT 0,
-      issued_by    TEXT NOT NULL CHECK(issued_by IN ('cashier', 'owner', 'admin')),
       note         TEXT,
+      issued_by    TEXT NOT NULL DEFAULT 'cashier' CHECK(issued_by IN ('cashier', 'owner')),
+      issued_by_id TEXT,
       created_at   TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (sale_id)    REFERENCES sales(id) ON DELETE CASCADE,
       FOREIGN KEY (cashier_id) REFERENCES cashiers(id) ON DELETE CASCADE
     );
   `)
+
+  // Migrate older credit table format to support owner-issued credits
+  try {
+    const hasIssuedBy = db.prepare("PRAGMA table_info('credits')").all().some(col => col.name === 'issued_by')
+    if (!hasIssuedBy) {
+      db.exec(`ALTER TABLE credits ADD COLUMN issued_by TEXT DEFAULT 'cashier';`)
+      db.exec(`ALTER TABLE credits ADD COLUMN issued_by_id TEXT;`)
+    }
+  } catch (_) {}
 
   // Credit payments table
   db.exec(`
@@ -175,12 +185,6 @@ function createTables() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
   `)
-
-  // Migration: add issued_by column to track who issued the credit
-  try {
-    db.exec("ALTER TABLE credits ADD COLUMN issued_by TEXT CHECK(issued_by IN ('cashier', 'owner', 'admin'));")
-    db.exec("UPDATE credits SET issued_by = 'cashier' WHERE issued_by IS NULL;")
-  } catch (_) {}
 
   // Migration for initial_quantity column if adding to existing database
   try {
