@@ -224,11 +224,24 @@ const chatController = {
 
   sendMessageAsSuperAdmin(req, res, next) {
     try {
-      const { receiverId, message } = req.body
+      const { receiverId, message, receiverRole } = req.body
       if (!receiverId || !message || !String(message).trim()) {
         return res.status(400).json({ success: false, message: 'receiverId and message are required' })
       }
-      const row = { id: uuidv4(), sender_id: req.superAdmin.id, sender_role: 'super_admin', receiver_id: receiverId, receiver_role: 'user', message: String(message).trim(), created_at: new Date().toISOString() }
+      // Determine receiver role: admin or user
+      const isAdminReceiver = receiverRole === 'admin' || (() => {
+        const adm = db.prepare('SELECT id FROM admins WHERE id = ?').get(receiverId)
+        return !!adm
+      })()
+      const row = {
+        id: uuidv4(),
+        sender_id: req.superAdmin.id,
+        sender_role: 'super_admin',
+        receiver_id: receiverId,
+        receiver_role: isAdminReceiver ? 'admin' : 'user',
+        message: String(message).trim(),
+        created_at: new Date().toISOString(),
+      }
       db.prepare(`INSERT INTO chat_messages (id, sender_id, sender_role, receiver_id, receiver_role, message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
         .run(row.id, row.sender_id, row.sender_role, row.receiver_id, row.receiver_role, row.message, row.created_at)
       res.status(201).json({ success: true, data: row })

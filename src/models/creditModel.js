@@ -29,9 +29,18 @@ const CreditModel = {
   createFromSale({ saleId, cashierId, ownerId, customer, totalAmount, note }) {
     const id = uuid()
     db.prepare(`
-      INSERT INTO credits (id, sale_id, cashier_id, owner_id, customer, total_amount, total_paid, note)
-      VALUES (?, ?, ?, ?, ?, ?, 0, ?)
+      INSERT INTO credits (id, sale_id, cashier_id, owner_id, customer, total_amount, total_paid, note, issued_by)
+      VALUES (?, ?, ?, ?, ?, ?, 0, ?, 'cashier')
     `).run(id, saleId, cashierId, ownerId, customer || 'Unknown', totalAmount, note || null)
+    return CreditModel.findById(id)
+  },
+
+  // General create method for owner/admin-issued credits
+  create({ id, sale_id, cashier_id, owner_id, customer, total_amount, total_paid, issued_by, note }) {
+    db.prepare(`
+      INSERT INTO credits (id, sale_id, cashier_id, owner_id, customer, total_amount, total_paid, issued_by, note)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, sale_id, cashier_id, owner_id, customer, total_amount, total_paid, issued_by, note)
     return CreditModel.findById(id)
   },
 

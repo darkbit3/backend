@@ -39,6 +39,18 @@ const creditController = {
       next(err)
     }
   },
+
+  // POST /api/credits/record  — owner/admin issues credit directly
+  async recordCredit(req, res, next) {
+    try {
+      const { customer, amount, note } = req.body
+      const result = creditService.recordCredit(req.user, { customer, amount, note })
+      res.json({ success: true, data: result })
+    } catch (err) {
+      if (err.status) return res.status(err.status).json({ success: false, message: err.message })
+      next(err)
+    }
+  },
 }
 
 module.exports = creditController

@@ -1,3 +1,4 @@
+const { v4: uuidv4 } = require('uuid')
 const CreditModel = require('../models/creditModel')
 
 const creditService = {
@@ -37,6 +38,44 @@ const creditService = {
     }
 
     return CreditModel.addPayment(creditId, { amount: amt, note })
+  },
+
+  // Record credit issued by owner/admin (not from a sale)
+  recordCredit(user, { customer, amount, note }) {
+    if (!user || !user.id) throw { status: 401, message: 'Unauthorized' }
+
+    // Only owners/manufacturers/resellers and admins can issue credit
+    const role = user.role
+    if (!['Manufacturer', 'Reseller', 'Admin'].includes(role)) {
+      throw { status: 403, message: 'Only owners and admins can issue credit' }
+    }
+
+    if (!customer || customer.trim().length === 0) {
+      throw { status: 400, message: 'Customer name is required' }
+    }
+
+    const amt = parseFloat(amount)
+    if (isNaN(amt) || amt <= 0) {
+      throw { status: 400, message: 'Amount must be a positive number' }
+    }
+
+    const id = uuidv4()
+    const ownerId = role === 'Admin' ? null : user.id
+    const issuedBy = role === 'Admin' ? 'admin' : 'owner'
+
+    const data = {
+      id,
+      sale_id: null,
+      cashier_id: null,
+      owner_id: ownerId,
+      customer: customer.trim(),
+      total_amount: amt,
+      total_paid: 0,
+      issued_by: issuedBy,
+      note: note || null,
+    }
+
+    return CreditModel.create(data)
   },
 }
 

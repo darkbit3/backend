@@ -131,16 +131,17 @@ function createTables() {
     );
   `)
 
-  // Credits table (created whenever a Credit sale is recorded)
+  // Credits table (created whenever a Credit sale is recorded or issued directly by owner/admin)
   db.exec(`
     CREATE TABLE IF NOT EXISTS credits (
       id           TEXT PRIMARY KEY,
-      sale_id      TEXT NOT NULL UNIQUE,
-      cashier_id   TEXT NOT NULL,
+      sale_id      TEXT UNIQUE,
+      cashier_id   TEXT,
       owner_id     TEXT NOT NULL,
       customer     TEXT NOT NULL DEFAULT 'Unknown',
       total_amount REAL NOT NULL DEFAULT 0,
       total_paid   REAL NOT NULL DEFAULT 0,
+      issued_by    TEXT NOT NULL CHECK(issued_by IN ('cashier', 'owner', 'admin')),
       note         TEXT,
       created_at   TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (sale_id)    REFERENCES sales(id) ON DELETE CASCADE,
@@ -174,6 +175,12 @@ function createTables() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
   `)
+
+  // Migration: add issued_by column to track who issued the credit
+  try {
+    db.exec("ALTER TABLE credits ADD COLUMN issued_by TEXT CHECK(issued_by IN ('cashier', 'owner', 'admin'));")
+    db.exec("UPDATE credits SET issued_by = 'cashier' WHERE issued_by IS NULL;")
+  } catch (_) {}
 
   // Migration for initial_quantity column if adding to existing database
   try {
