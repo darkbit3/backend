@@ -1,7 +1,13 @@
 const path = require('path')
 const config = require('../config/config')
 
-const usePostgres = Boolean(process.env.DATABASE_URL || process.env.DB_URL || (process.env.DB_PATH ? false : true))
+const usePostgres = Boolean(
+  process.env.RENDER ||
+  process.env.DATABASE_URL ||
+  process.env.DB_URL ||
+  process.env.POSTGRES_URL ||
+  (!process.env.DB_PATH && process.env.NODE_ENV !== 'test')
+)
 
 if (usePostgres) {
   const { Pool } = require('pg')
