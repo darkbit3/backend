@@ -28,18 +28,32 @@ function buildPersonList({ records, currentUserId, currentRole, search = '' }) {
       avatar: (person.name || 'U').split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase() || 'U',
       color: person.color || '#7C3AED',
       phone: person.phone || null,
+      isSuperAdmin: person._isSuperAdmin === true || person.role === 'Super Admin',
     }))
 }
 
 function getChatPeopleForRole(type, currentUserId, search = '') {
   if (type === 'admin') {
-    const rows = db.prepare(`
+    // Own users (Manufacturer/Reseller under this admin)
+    const userRows = db.prepare(`
       SELECT u.id, u.name, u.phone, u.role, u.status
       FROM users u
       WHERE u.admin_id = ?
       ORDER BY u.name ASC
     `).all(currentUserId)
-    return buildPersonList({ records: rows.map((r) => ({ ...r, role: r.role })), currentUserId, currentRole: 'admin', search })
+
+    // All super admins — admins can message the super admin
+    const superAdminRows = db.prepare(`
+      SELECT sa.id, sa.name, sa.phone, 'Super Admin' AS role, 'Active' AS status
+      FROM super_admins sa
+      ORDER BY sa.name ASC
+    `).all()
+
+    const allRows = [
+      ...superAdminRows.map(r => ({ ...r, _isSuperAdmin: true })),
+      ...userRows,
+    ]
+    return buildPersonList({ records: allRows, currentUserId, currentRole: 'admin', search })
   }
 
   if (type === 'super_admin') {
@@ -182,11 +196,24 @@ const chatController = {
 
   sendMessageAsAdmin(req, res, next) {
     try {
-      const { receiverId, message } = req.body
+      const { receiverId, message, receiverRole } = req.body
       if (!receiverId || !message || !String(message).trim()) {
         return res.status(400).json({ success: false, message: 'receiverId and message are required' })
       }
-      const row = { id: uuidv4(), sender_id: req.admin.id, sender_role: 'admin', receiver_id: receiverId, receiver_role: 'user', message: String(message).trim(), created_at: new Date().toISOString() }
+      // Determine if receiver is a super admin or regular user
+      const isSuperAdminReceiver = receiverRole === 'super_admin' || (() => {
+        const sa = db.prepare('SELECT id FROM super_admins WHERE id = ?').get(receiverId)
+        return !!sa
+      })()
+      const row = {
+        id: uuidv4(),
+        sender_id: req.admin.id,
+        sender_role: 'admin',
+        receiver_id: receiverId,
+        receiver_role: isSuperAdminReceiver ? 'super_admin' : 'user',
+        message: String(message).trim(),
+        created_at: new Date().toISOString(),
+      }
       db.prepare(`INSERT INTO chat_messages (id, sender_id, sender_role, receiver_id, receiver_role, message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
         .run(row.id, row.sender_id, row.sender_role, row.receiver_id, row.receiver_role, row.message, row.created_at)
       res.status(201).json({ success: true, data: row })
