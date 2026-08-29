@@ -36,6 +36,17 @@ const userLoginController = {
       next(err)
     }
   },
+
+  // PUT /api/user-auth/alert-threshold
+  updateAlertThreshold(req, res, next) {
+    try {
+      const { threshold } = req.body
+      userLoginService.updateAlertThreshold(req.user.id, threshold)
+      res.json({ success: true, message: 'Alert threshold updated successfully' })
+    } catch (err) {
+      next(err)
+    }
+  },
 }
 
 module.exports = userLoginController

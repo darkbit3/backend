@@ -26,4 +26,13 @@ router.put('/change-password',
   userLoginController.changePassword
 )
 
+// PUT /api/user-auth/alert-threshold  (protected)
+router.put('/alert-threshold',
+  authenticateUser,
+  validate({
+    threshold: { required: true, min: 5, max: 100 },
+  }),
+  userLoginController.updateAlertThreshold
+)
+
 module.exports = router

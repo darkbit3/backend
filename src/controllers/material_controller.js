@@ -47,6 +47,18 @@ const materialController = {
     }
   },
 
+  update(req, res, next) {
+    try {
+      const userId = req.user.id
+      const { id } = req.params
+      const material = materialService.update(id, userId, req.body)
+      res.json({ success: true, data: material })
+    } catch (err) {
+      if (err.status) return res.status(err.status).json({ success: false, message: err.message })
+      next(err)
+    }
+  },
+
   remove(req, res, next) {
     try {
       const userId = req.user.id

@@ -44,6 +44,32 @@ const MaterialModel = {
     `).all(userId).map(MaterialModel._parse)
   },
 
+  // Get materials below custom threshold percentage
+  findLowStockWithThreshold(userId, thresholdPercentage = 20) {
+    const threshold = (thresholdPercentage || 20) / 100
+    return db.prepare(`
+      SELECT * FROM materials
+      WHERE user_id = ?
+        AND (
+          (initial_quantity > 0 AND (quantity * 1.0 / initial_quantity) <= ?)
+          OR (initial_quantity = 0 AND quantity <= 5)
+        )
+      ORDER BY quantity ASC
+    `).all(userId, threshold).map(MaterialModel._parse)
+  },
+
+  update(id, userId, { name, quantity, unit, unitPrice, initialPrice, images, colors }) {
+    const colorsJson = JSON.stringify(colors || [])
+    const imagesJson = JSON.stringify(images && images.length ? images : [])
+    const result = db.prepare(`
+      UPDATE materials
+      SET name = ?, unit_price = ?, initial_price = ?, image_url = ?, colors = ?, unit = ?
+      WHERE id = ? AND user_id = ?
+    `).run(name, unitPrice, initialPrice ?? 0, imagesJson, colorsJson, unit, id, userId)
+    if (result.changes === 0) return null
+    return MaterialModel.findById(id)
+  },
+
   delete(id, userId) {
     return db.prepare('DELETE FROM materials WHERE id = ? AND user_id = ?').run(id, userId)
   },

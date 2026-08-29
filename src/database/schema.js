@@ -48,6 +48,11 @@ function createTables() {
     db.exec(`ALTER TABLE users ADD COLUMN admin_id TEXT;`)
   } catch (_) {}
 
+  // Alert threshold percentage for low stock (default 20%)
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN alert_threshold_percentage REAL DEFAULT 20;`)
+  } catch (_) {}
+
   // Cashiers table (belong to a user — Manufacturer or Reseller)
   db.exec(`
     CREATE TABLE IF NOT EXISTS cashiers (

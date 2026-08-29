@@ -35,7 +35,7 @@ const UserModel = {
   },
 
   findById(id) {
-    return db.prepare('SELECT id, name, phone, role, account_type, free_until, status, created_at, admin_id FROM users WHERE id = ?').get(id)
+    return db.prepare('SELECT id, name, phone, role, account_type, free_until, status, created_at, admin_id, alert_threshold_percentage FROM users WHERE id = ?').get(id)
   },
 
   findByIdWithPassword(id) {
@@ -74,6 +74,12 @@ const UserModel = {
     return db.prepare(`
       UPDATE users SET password = ?, plain_password = ?, updated_at = datetime('now') WHERE id = ?
     `).run(hashedPassword, plainPassword, id)
+  },
+
+  updateAlertThreshold(id, threshold) {
+    return db.prepare(`
+      UPDATE users SET alert_threshold_percentage = ?, updated_at = datetime('now') WHERE id = ?
+    `).run(threshold, id)
   },
 
   delete(id) {

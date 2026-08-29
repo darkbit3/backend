@@ -28,7 +28,7 @@ const userLoginService = {
       const isMatch = await bcrypt.compare(password, user.password)
       if (!isMatch) throw { status: 401, message: 'Invalid phone or password' }
       const { accessToken, refreshToken } = generateTokens(user.id, user.phone, user.id)
-      return { accessToken, refreshToken, user: { id: user.id, name: user.name, phone: user.phone, role: user.role, status: user.status } }
+      return { accessToken, refreshToken, user: { id: user.id, name: user.name, phone: user.phone, role: user.role, status: user.status, alertThresholdPercentage: user.alert_threshold_percentage || 20 } }
     }
 
     // 2. Check cashiers table
@@ -58,7 +58,7 @@ const userLoginService = {
 
   getMe(userId) {
     const user = UserModel.findById(userId)
-    if (user) return { id: user.id, name: user.name, phone: user.phone, role: user.role, status: user.status }
+    if (user) return { id: user.id, name: user.name, phone: user.phone, role: user.role, status: user.status, alertThresholdPercentage: user.alert_threshold_percentage || 20 }
 
     const cashier = db.prepare('SELECT id, name, phone, status, owner_id FROM cashiers WHERE id = ?').get(userId)
     if (cashier) return { id: cashier.id, name: cashier.name, phone: cashier.phone, role: 'Cashier', status: cashier.status, owner_id: cashier.owner_id }
@@ -96,6 +96,16 @@ const userLoginService = {
       return
     }
     throw { status: 404, message: 'User not found' }
+  },
+
+  updateAlertThreshold(userId, threshold) {
+    const user = UserModel.findById(userId)
+    if (!user) throw { status: 404, message: 'User not found' }
+    if (user.role !== 'Manufacturer' && user.role !== 'Reseller')
+      throw { status: 403, message: 'Only Manufacturer and Reseller can set alert threshold' }
+    if (threshold < 5 || threshold > 100)
+      throw { status: 400, message: 'Alert threshold must be between 5 and 100' }
+    return UserModel.updateAlertThreshold(userId, threshold)
   },
 }
 

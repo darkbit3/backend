@@ -1,5 +1,6 @@
 const SaleModel     = require('../models/saleModel')
 const MaterialModel = require('../models/materialModel')
+const UserModel     = require('../models/userModel')
 const db            = require('../database/db')
 
 const saleService = {
@@ -21,8 +22,12 @@ const saleService = {
     const totalAmount = processedItems.reduce((s, i) => s + i.total, 0)
     const sale = SaleModel.create({ cashierId, ownerId, customer, paymentType, totalAmount, note, items: processedItems })
 
-    // Check low stock materials for this owner (<= 20% remaining)
-    const lowStock = MaterialModel.findLowStock(ownerId)
+    // Get owner's alert threshold percentage (default 20%)
+    const owner = UserModel.findById(ownerId)
+    const threshold = owner?.alert_threshold_percentage || 20
+    
+    // Check low stock materials for this owner with custom threshold
+    const lowStock = MaterialModel.findLowStockWithThreshold(ownerId, threshold)
 
     return {
       sale,
