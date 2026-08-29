@@ -260,10 +260,15 @@ function createTables() {
       phone       TEXT NOT NULL UNIQUE,
       password    TEXT NOT NULL,
       name        TEXT NOT NULL DEFAULT 'Super Admin',
+      status      TEXT NOT NULL DEFAULT 'Active',
       created_at  TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `)
+
+  try {
+    db.exec(`ALTER TABLE super_admins ADD COLUMN status TEXT NOT NULL DEFAULT 'Active';`)
+  } catch (_) {}
 
   // Super admin refresh tokens
   db.exec(`
