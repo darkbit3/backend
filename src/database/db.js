@@ -1,13 +1,15 @@
 const path = require('path')
 const config = require('../config/config')
 
-const usePostgres = Boolean(
-  process.env.RENDER ||
-  process.env.DATABASE_URL ||
-  process.env.DB_URL ||
-  process.env.POSTGRES_URL ||
-  (!process.env.DB_PATH && process.env.NODE_ENV !== 'test')
-)
+const usePostgres = process.env.NODE_ENV !== 'test' &&
+  !process.env.USE_SQLITE &&
+  (
+    process.env.RENDER ||
+    process.env.DATABASE_URL ||
+    process.env.DB_URL ||
+    process.env.POSTGRES_URL ||
+    !process.env.DB_PATH
+  )
 
 if (usePostgres) {
   const { Pool } = require('pg')
@@ -100,12 +102,12 @@ if (usePostgres) {
     query: (sql, params = []) => runQuery(sql, params),
     raw: (sql, params = []) => runQuery(sql, params),
   }
+} else {
+  const Database = require('better-sqlite3')
+  const dbPath = path.resolve(__dirname, '../../', config.db.path)
+  const db = new Database(dbPath)
+  db.pragma('journal_mode = WAL')
+  db.pragma('foreign_keys = ON')
+
+  module.exports = db
 }
-
-const Database = require('better-sqlite3')
-const dbPath = path.resolve(__dirname, '../../', config.db.path)
-const db = new Database(dbPath)
-db.pragma('journal_mode = WAL')
-db.pragma('foreign_keys = ON')
-
-module.exports = db

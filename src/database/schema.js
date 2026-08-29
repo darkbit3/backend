@@ -295,13 +295,18 @@ function createTables() {
   // existing rows are fine — new inserts work because SQLite CHECK is not enforced
   // in older versions, and newer rows use the updated app which passes 'Kilogram')
   // Ensure the materials table accepts Kilogram by recreating only if needed:
-  const unitCheck = db.prepare(`
-    SELECT column_name
-    FROM information_schema.columns
-    WHERE table_name = 'materials' AND column_name = 'unit'
-  `).get()
-  if (unitCheck) {
-    console.log('[DB] Postgres materials table is ready for Kilogram values when used by the app layer.')
+  try {
+    const unitCheck = db.prepare(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'materials' AND column_name = 'unit'
+    `).get()
+    if (unitCheck) {
+      console.log('[DB] Postgres materials table is ready for Kilogram values when used by the app layer.')
+    }
+  } catch (_) {
+    // SQLite does not support information_schema.columns; skip this check in local/dev databases.
+    console.log('[DB] Local SQLite detected; skipping PostgreSQL-only schema metadata check.')
   }
 }
 
