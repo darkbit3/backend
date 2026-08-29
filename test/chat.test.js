@@ -1,0 +1,104 @@
+const { test, after } = require('node:test')
+const assert = require('node:assert/strict')
+const crypto = require('node:crypto')
+const fs = require('node:fs')
+const path = require('node:path')
+const express = require('express')
+const jwt = require('jsonwebtoken')
+
+process.env.NODE_ENV = 'test'
+process.env.JWT_SECRET = 'test-access-secret-that-is-at-least-32-characters-long'
+process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-that-is-at-least-32-characters-long'
+process.env.ADMIN_PHONE = '0900000000'
+process.env.ADMIN_PASSWORD = 'test-admin-password'
+process.env.SUPER_ADMIN_PHONE = '0900000001'
+process.env.SUPER_ADMIN_PASSWORD = 'test-super-password'
+process.env.SUPER_ADMIN_NAME = 'Test Super Admin'
+process.env.DB_PATH = `./data/chat-test-${process.pid}-${crypto.randomUUID()}.sqlite`
+
+const db = require('../src/database/db')
+const { createTables } = require('../src/database/schema')
+const chatRoutes = require('../src/routes/chat_route')
+const errorHandler = require('../src/middleware/errorHandler')
+
+createTables()
+
+const adminId = crypto.randomUUID()
+const ownerId = crypto.randomUUID()
+const otherOwnerId = crypto.randomUUID()
+const senderHash = crypto.randomUUID()
+const targetHash = crypto.randomUUID()
+
+const adminToken = jwt.sign({ id: adminId, phone: '0900000002', type: 'admin' }, process.env.JWT_SECRET, { expiresIn: '15m' })
+
+const testDatabasePath = path.resolve(__dirname, '..', process.env.DB_PATH)
+after(() => {
+  db.close()
+  for (const suffix of ['', '-wal', '-shm']) {
+    try { fs.unlinkSync(`${testDatabasePath}${suffix}`) } catch (_) {}
+  }
+})
+
+function createApp() {
+  const app = express()
+  app.use(express.json())
+  app.use('/api/chat', chatRoutes)
+  app.use(errorHandler)
+  return app
+}
+
+async function request(app, path, options = {}) {
+  const server = app.listen(0)
+  await new Promise(resolve => server.once('listening', resolve))
+  const url = `http://127.0.0.1:${server.address().port}${path}`
+  try {
+    return await fetch(url, { ...options, headers: { 'content-type': 'application/json', ...(options.headers || {}) } })
+  } finally {
+    await new Promise(resolve => server.close(resolve))
+  }
+}
+
+test('chat people list returns database users and supports search', async () => {
+  db.prepare('DELETE FROM chat_messages').run()
+  db.prepare('DELETE FROM users').run()
+  db.prepare('DELETE FROM admins').run()
+
+  db.prepare('INSERT INTO admins (id, phone, password, name, status) VALUES (?, ?, ?, ?, ?)')
+    .run(adminId, '0900000002', 'hashed-pass', 'Alpha Admin', 'Active')
+
+  db.prepare('INSERT INTO users (id, name, phone, password, role, admin_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(ownerId, 'Beta Owner', '0900000030', 'secret', 'Manufacturer', adminId, 'Active')
+  db.prepare('INSERT INTO users (id, name, phone, password, role, admin_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(otherOwnerId, 'Gamma Client', '0900000031', 'secret', 'Reseller', adminId, 'Active')
+
+  const response = await request(createApp(), '/api/chat/people?search=beta', {
+    method: 'GET',
+    headers: { authorization: `Bearer ${adminToken}` },
+  })
+
+  assert.equal(response.status, 200)
+  const json = await response.json()
+  assert.equal(json.success, true)
+  assert.equal(json.data.length, 1)
+  assert.equal(json.data[0].name, 'Beta Owner')
+})
+
+test('chat messages return the selected conversation from database', async () => {
+  db.prepare('DELETE FROM chat_messages').run()
+
+  db.prepare('INSERT INTO chat_messages (id, sender_id, sender_role, receiver_id, receiver_role, message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(crypto.randomUUID(), adminId, 'admin', ownerId, 'user', 'Hello owner', new Date().toISOString())
+  db.prepare('INSERT INTO chat_messages (id, sender_id, sender_role, receiver_id, receiver_role, message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(crypto.randomUUID(), ownerId, 'user', adminId, 'admin', 'Hi admin', new Date().toISOString())
+
+  const response = await request(createApp(), `/api/chat/messages/${ownerId}`, {
+    method: 'GET',
+    headers: { authorization: `Bearer ${adminToken}` },
+  })
+
+  assert.equal(response.status, 200)
+  const json = await response.json()
+  assert.equal(json.success, true)
+  assert.equal(json.data.length, 2)
+  assert.equal(json.data.some((m) => m.message === 'Hello owner'), true)
+})

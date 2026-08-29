@@ -13,6 +13,12 @@ router.post('/login',
   userLoginController.login
 )
 
+// POST /api/user-auth/forgot-password/check-phone  (public)
+router.post('/forgot-password/check-phone', userLoginController.checkPhone)
+
+// POST /api/user-auth/forgot-password/verify-otp   (public)
+router.post('/forgot-password/verify-otp', userLoginController.verifyOtp)
+
 // GET /api/user-auth/me  (protected)
 router.get('/me', authenticateUser, userLoginController.me)
 
