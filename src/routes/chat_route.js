@@ -1,73 +1,60 @@
 const express = require('express')
 const router = express.Router()
 const chatController = require('../controllers/chat_controller')
-const { authenticate, authenticateUser } = require('../middleware/auth')
 const { authenticateSuperAdmin } = require('../middleware/superAdminAuth')
 
-router.get('/people', (req, res, next) => {
+function attachDecodedUser(req) {
   const authHeader = req.headers.authorization
-  if (!authHeader) return res.status(401).json({ success: false, message: 'Access token required' })
+  if (!authHeader) throw new Error('Access token required')
 
   const token = authHeader.split(' ')[1]
-  if (!token) return res.status(401).json({ success: false, message: 'Access token required' })
+  if (!token) throw new Error('Access token required')
 
+  const jwt = require('jsonwebtoken')
+  const config = require('../config/config')
+  const decoded = jwt.verify(token, config.jwt.secret)
+  req.user = decoded
+  req.admin = decoded
+  req.superAdmin = decoded
+  return decoded
+}
+
+router.get('/people', (req, res, next) => {
   try {
-    const jwt = require('jsonwebtoken')
-    const config = require('../config/config')
-    const decoded = jwt.verify(token, config.jwt.secret)
-    req.user = decoded
-    req.admin = decoded
-    req.superAdmin = decoded
+    const decoded = attachDecodedUser(req)
     if (decoded.type === 'super_admin') return chatController.getPeopleForSuperAdmin(req, res, next)
     if (decoded.type === 'user') return chatController.getPeopleForUser(req, res, next)
     return chatController.getPeopleForAdmin(req, res, next)
   } catch (err) {
-    return res.status(401).json({ success: false, message: 'Invalid token' })
+    return res.status(401).json({ success: false, message: err.message || 'Invalid token' })
   }
 })
 
 router.get('/messages/:otherUserId', (req, res, next) => {
-  const authHeader = req.headers.authorization
-  if (!authHeader) return res.status(401).json({ success: false, message: 'Access token required' })
-
-  const token = authHeader.split(' ')[1]
-  if (!token) return res.status(401).json({ success: false, message: 'Access token required' })
-
   try {
-    const jwt = require('jsonwebtoken')
-    const config = require('../config/config')
-    const decoded = jwt.verify(token, config.jwt.secret)
-    req.user = decoded
-    req.admin = decoded
-    req.superAdmin = decoded
+    const decoded = attachDecodedUser(req)
     if (decoded.type === 'super_admin') return chatController.getMessagesForSuperAdmin(req, res, next)
     if (decoded.type === 'user') return chatController.getMessagesForUser(req, res, next)
     return chatController.getMessagesForAdmin(req, res, next)
   } catch (err) {
-    return res.status(401).json({ success: false, message: 'Invalid token' })
+    return res.status(401).json({ success: false, message: err.message || 'Invalid token' })
   }
 })
 
 router.post('/send', (req, res, next) => {
-  const authHeader = req.headers.authorization
-  if (!authHeader) return res.status(401).json({ success: false, message: 'Access token required' })
-
-  const token = authHeader.split(' ')[1]
-  if (!token) return res.status(401).json({ success: false, message: 'Access token required' })
-
   try {
-    const jwt = require('jsonwebtoken')
-    const config = require('../config/config')
-    const decoded = jwt.verify(token, config.jwt.secret)
-    req.user = decoded
-    req.admin = decoded
-    req.superAdmin = decoded
+    const decoded = attachDecodedUser(req)
     if (decoded.type === 'super_admin') return chatController.sendMessageAsSuperAdmin(req, res, next)
     if (decoded.type === 'user') return chatController.sendMessageAsUser(req, res, next)
     return chatController.sendMessageAsAdmin(req, res, next)
   } catch (err) {
-    return res.status(401).json({ success: false, message: 'Invalid token' })
+    return res.status(401).json({ success: false, message: err.message || 'Invalid token' })
   }
 })
+
+router.get('/groups', authenticateSuperAdmin, chatController.getGroupsForSuperAdmin)
+router.post('/groups', authenticateSuperAdmin, chatController.createGroupForSuperAdmin)
+router.get('/groups/:groupId/messages', authenticateSuperAdmin, chatController.getGroupMessagesForSuperAdmin)
+router.post('/groups/:groupId/send', authenticateSuperAdmin, chatController.sendGroupMessageForSuperAdmin)
 
 module.exports = router

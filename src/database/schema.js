@@ -42,6 +42,40 @@ function createTables() {
     );
   `)
 
+  // Super-admin group chats
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_groups (
+      id          TEXT PRIMARY KEY,
+      name        TEXT NOT NULL,
+      description TEXT,
+      created_by  TEXT NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `)
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_group_members (
+      id         TEXT PRIMARY KEY,
+      group_id   TEXT NOT NULL,
+      user_id    TEXT NOT NULL,
+      user_role  TEXT NOT NULL CHECK(user_role IN ('admin', 'user')),
+      joined_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (group_id) REFERENCES chat_groups(id) ON DELETE CASCADE
+    );
+  `)
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_group_messages (
+      id          TEXT PRIMARY KEY,
+      group_id    TEXT NOT NULL,
+      sender_id   TEXT NOT NULL,
+      sender_role TEXT NOT NULL CHECK(sender_role IN ('super_admin', 'admin', 'user')),
+      message     TEXT NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (group_id) REFERENCES chat_groups(id) ON DELETE CASCADE
+    );
+  `)
+
   // Migrate existing DB — add plain_password and account_type columns if they don't exist yet
   try {
     db.exec(`ALTER TABLE users ADD COLUMN plain_password TEXT;`)

@@ -34,7 +34,6 @@ function buildPersonList({ records, currentUserId, currentRole, search = '' }) {
 
 function getChatPeopleForRole(type, currentUserId, search = '') {
   if (type === 'admin') {
-    // Own users (Manufacturer/Reseller under this admin)
     const userRows = db.prepare(`
       SELECT u.id, u.name, u.phone, u.role, u.status
       FROM users u
@@ -42,7 +41,6 @@ function getChatPeopleForRole(type, currentUserId, search = '') {
       ORDER BY u.name ASC
     `).all(currentUserId)
 
-    // All super admins — admins can message the super admin
     const superAdminRows = db.prepare(`
       SELECT sa.id, sa.name, sa.phone, 'Super Admin' AS role, 'Active' AS status
       FROM super_admins sa
@@ -98,6 +96,17 @@ function getConversationRecords(currentUserId, currentRole, otherUserId) {
     )
     ORDER BY created_at ASC
   `).all(currentUserId, otherUserId, otherUserId, currentUserId)
+}
+
+function formatGroupRow(group) {
+  return {
+    id: group.id,
+    name: group.name,
+    description: group.description || '',
+    createdBy: group.created_by,
+    createdAt: group.created_at,
+    memberCount: Number(group.member_count || 0),
+  }
 }
 
 const chatController = {
@@ -200,7 +209,6 @@ const chatController = {
       if (!receiverId || !message || !String(message).trim()) {
         return res.status(400).json({ success: false, message: 'receiverId and message are required' })
       }
-      // Determine if receiver is a super admin or regular user
       const isSuperAdminReceiver = receiverRole === 'super_admin' || (() => {
         const sa = db.prepare('SELECT id FROM super_admins WHERE id = ?').get(receiverId)
         return !!sa
@@ -228,7 +236,6 @@ const chatController = {
       if (!receiverId || !message || !String(message).trim()) {
         return res.status(400).json({ success: false, message: 'receiverId and message are required' })
       }
-      // Determine receiver role: admin or user
       const isAdminReceiver = receiverRole === 'admin' || (() => {
         const adm = db.prepare('SELECT id FROM admins WHERE id = ?').get(receiverId)
         return !!adm
@@ -259,6 +266,164 @@ const chatController = {
       const row = { id: uuidv4(), sender_id: req.user.id, sender_role: 'user', receiver_id: receiverId, receiver_role: 'admin', message: String(message).trim(), created_at: new Date().toISOString() }
       db.prepare(`INSERT INTO chat_messages (id, sender_id, sender_role, receiver_id, receiver_role, message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
         .run(row.id, row.sender_id, row.sender_role, row.receiver_id, row.receiver_role, row.message, row.created_at)
+      res.status(201).json({ success: true, data: row })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  getGroupsForSuperAdmin(req, res, next) {
+    try {
+      const groups = db.prepare(`
+        SELECT g.id, g.name, g.description, g.created_by, g.created_at,
+               COUNT(m.id) AS member_count
+        FROM chat_groups g
+        LEFT JOIN chat_group_members m ON m.group_id = g.id
+        WHERE g.created_by = ?
+        GROUP BY g.id, g.name, g.description, g.created_by, g.created_at
+        ORDER BY g.created_at DESC
+      `).all(req.superAdmin.id)
+
+      const data = groups.map(group => ({
+        ...formatGroupRow(group),
+        members: db.prepare(`
+          SELECT gm.user_id, gm.user_role, a.name AS admin_name, u.name AS user_name
+          FROM chat_group_members gm
+          LEFT JOIN admins a ON a.id = gm.user_id AND gm.user_role = 'admin'
+          LEFT JOIN users u ON u.id = gm.user_id AND gm.user_role = 'user'
+          WHERE gm.group_id = ?
+          ORDER BY gm.joined_at ASC
+        `).all(group.id).map(member => ({
+          id: member.user_id,
+          role: member.user_role,
+          name: member.user_role === 'admin' ? member.admin_name : member.user_name,
+        })),
+      }))
+
+      res.json({ success: true, data })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  createGroupForSuperAdmin(req, res, next) {
+    try {
+      const { name, description, memberIds = [] } = req.body
+      if (!name || !String(name).trim()) {
+        return res.status(400).json({ success: false, message: 'Group name is required' })
+      }
+      if (!Array.isArray(memberIds) || memberIds.length === 0) {
+        return res.status(400).json({ success: false, message: 'At least one user must be added to the group' })
+      }
+
+      const uniqueMembers = [...new Set(memberIds.filter(Boolean))]
+      const groupId = uuidv4()
+      db.prepare(`
+        INSERT INTO chat_groups (id, name, description, created_by, created_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(groupId, String(name).trim(), description ? String(description).trim() : '', req.superAdmin.id, new Date().toISOString())
+
+      const insertMember = db.prepare(`
+        INSERT INTO chat_group_members (id, group_id, user_id, user_role, joined_at)
+        VALUES (?, ?, ?, ?, ?)
+      `)
+
+      uniqueMembers.forEach((memberId) => {
+        const adminRow = db.prepare('SELECT id FROM admins WHERE id = ?').get(memberId)
+        const userRow = db.prepare('SELECT id FROM users WHERE id = ?').get(memberId)
+        if (!adminRow && !userRow) return
+
+        insertMember.run(uuidv4(), groupId, memberId, adminRow ? 'admin' : 'user', new Date().toISOString())
+      })
+
+      const created = db.prepare(`
+        SELECT g.id, g.name, g.description, g.created_by, g.created_at,
+               COUNT(m.id) AS member_count
+        FROM chat_groups g
+        LEFT JOIN chat_group_members m ON m.group_id = g.id
+        WHERE g.id = ?
+        GROUP BY g.id, g.name, g.description, g.created_by, g.created_at
+      `).get(groupId)
+
+      res.status(201).json({
+        success: true,
+        data: {
+          ...formatGroupRow(created),
+          members: db.prepare(`
+            SELECT gm.user_id, gm.user_role, a.name AS admin_name, u.name AS user_name
+            FROM chat_group_members gm
+            LEFT JOIN admins a ON a.id = gm.user_id AND gm.user_role = 'admin'
+            LEFT JOIN users u ON u.id = gm.user_id AND gm.user_role = 'user'
+            WHERE gm.group_id = ?
+            ORDER BY gm.joined_at ASC
+          `).all(groupId).map(member => ({
+            id: member.user_id,
+            role: member.user_role,
+            name: member.user_role === 'admin' ? member.admin_name : member.user_name,
+          })),
+        },
+      })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  getGroupMessagesForSuperAdmin(req, res, next) {
+    try {
+      const { groupId } = req.params
+      const group = db.prepare('SELECT * FROM chat_groups WHERE id = ? AND created_by = ?').get(groupId, req.superAdmin.id)
+      if (!group) {
+        return res.status(404).json({ success: false, message: 'Group not found' })
+      }
+
+      const rows = db.prepare(`
+        SELECT id, sender_id, sender_role, message, created_at
+        FROM chat_group_messages
+        WHERE group_id = ?
+        ORDER BY created_at ASC
+      `).all(groupId)
+
+      const data = rows.map((msg) => ({
+        id: msg.id,
+        senderId: msg.sender_id,
+        senderRole: msg.sender_role,
+        message: msg.message,
+        createdAt: msg.created_at,
+        isMine: msg.sender_id === req.superAdmin.id && msg.sender_role === 'super_admin',
+      }))
+      res.json({ success: true, data })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  sendGroupMessageForSuperAdmin(req, res, next) {
+    try {
+      const { groupId } = req.params
+      const { message } = req.body
+      if (!message || !String(message).trim()) {
+        return res.status(400).json({ success: false, message: 'Message text is required' })
+      }
+
+      const group = db.prepare('SELECT * FROM chat_groups WHERE id = ? AND created_by = ?').get(groupId, req.superAdmin.id)
+      if (!group) {
+        return res.status(404).json({ success: false, message: 'Group not found' })
+      }
+
+      const row = {
+        id: uuidv4(),
+        group_id: groupId,
+        sender_id: req.superAdmin.id,
+        sender_role: 'super_admin',
+        message: String(message).trim(),
+        created_at: new Date().toISOString(),
+      }
+
+      db.prepare(`
+        INSERT INTO chat_group_messages (id, group_id, sender_id, sender_role, message, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(row.id, row.group_id, row.sender_id, row.sender_role, row.message, row.created_at)
+
       res.status(201).json({ success: true, data: row })
     } catch (err) {
       next(err)
