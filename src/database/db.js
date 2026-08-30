@@ -20,9 +20,7 @@ function createSqliteDb() {
   return db
 }
 
-let activeDb = createSqliteDb()
-
-if (usePostgres) {
+function createPostgresDb() {
   const { Pool } = require('pg')
   const deasync = require('deasync')
 
@@ -40,6 +38,27 @@ if (usePostgres) {
   pool.on('error', (err) => {
     console.error('[DB] Unexpected PostgreSQL pool error:', err)
   })
+
+  let probeSucceeded = false
+  let probeError = null
+
+  pool.query('SELECT 1')
+    .then(() => {
+      probeSucceeded = true
+    })
+    .catch((error) => {
+      probeError = error
+    })
+
+  deasync.loopWhile(() => !probeSucceeded && !probeError)
+
+  if (probeError) {
+    pool.end().catch(() => {})
+    console.warn('[DB] PostgreSQL connection failed; falling back to SQLite instead.', probeError.message)
+    return createSqliteDb()
+  }
+
+  console.log('[DB] Using PostgreSQL database.')
 
   function normalizeSql(sql) {
     return String(sql)
@@ -94,7 +113,7 @@ if (usePostgres) {
     }
   }
 
-  const postgresDb = {
+  return {
     prepare: (sql) => createStatement(sql),
     exec: (sql) => {
       const statements = String(sql)
@@ -113,19 +132,9 @@ if (usePostgres) {
     query: (sql, params = []) => runQuery(sql, params),
     raw: (sql, params = []) => runQuery(sql, params),
   }
-
-  const probe = pool.query('SELECT 1')
-  probe
-    .then(() => {
-      activeDb = postgresDb
-      console.log('[DB] Using PostgreSQL database.')
-    })
-    .catch((error) => {
-      console.warn('[DB] PostgreSQL connection failed; falling back to SQLite instead.', error.message)
-      activeDb = createSqliteDb()
-      pool.end().catch(() => {})
-    })
 }
+
+const activeDb = usePostgres ? createPostgresDb() : createSqliteDb()
 
 module.exports = {
   prepare: (sql) => activeDb.prepare(sql),
