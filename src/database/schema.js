@@ -38,6 +38,7 @@ function createTables() {
       receiver_id   TEXT NOT NULL,
       receiver_role TEXT NOT NULL CHECK(receiver_role IN ('admin', 'super_admin', 'user')),
       message       TEXT NOT NULL,
+      status        TEXT NOT NULL DEFAULT 'sent' CHECK(status IN ('sent', 'read')),
       created_at    TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `)
@@ -71,6 +72,7 @@ function createTables() {
       sender_id   TEXT NOT NULL,
       sender_role TEXT NOT NULL CHECK(sender_role IN ('super_admin', 'admin', 'user')),
       message     TEXT NOT NULL,
+      status      TEXT NOT NULL DEFAULT 'sent' CHECK(status IN ('sent', 'read')),
       created_at  TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (group_id) REFERENCES chat_groups(id) ON DELETE CASCADE
     );
@@ -97,6 +99,15 @@ function createTables() {
   // Alert threshold percentage for low stock (default 20%)
   try {
     db.exec(`ALTER TABLE users ADD COLUMN alert_threshold_percentage REAL DEFAULT 20;`)
+  } catch (_) {}
+
+  // Message status tracking: sent (✓) vs read (✓✓)
+  try {
+    db.exec(`ALTER TABLE chat_messages ADD COLUMN status TEXT DEFAULT 'sent' CHECK(status IN ('sent', 'read'));`)
+  } catch (_) {}
+
+  try {
+    db.exec(`ALTER TABLE chat_group_messages ADD COLUMN status TEXT DEFAULT 'sent' CHECK(status IN ('sent', 'read'));`)
   } catch (_) {}
 
   // Cashiers table (belong to a user — Manufacturer or Reseller)

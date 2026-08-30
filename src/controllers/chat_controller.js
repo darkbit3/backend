@@ -80,7 +80,8 @@ function getChatPeopleForRole(type, currentUserId, search = '') {
 }
 
 function getConversationRecords(currentUserId, currentRole, otherUserId) {
-  return db.prepare(`
+  // Mark incoming messages as read when retrieved
+  const messages = db.prepare(`
     SELECT
       id,
       sender_id,
@@ -88,6 +89,7 @@ function getConversationRecords(currentUserId, currentRole, otherUserId) {
       receiver_id,
       receiver_role,
       message,
+      status,
       created_at
     FROM chat_messages
     WHERE (
@@ -96,6 +98,15 @@ function getConversationRecords(currentUserId, currentRole, otherUserId) {
     )
     ORDER BY created_at ASC
   `).all(currentUserId, otherUserId, otherUserId, currentUserId)
+
+  // Mark all incoming messages (not from current user) as read
+  db.prepare(`
+    UPDATE chat_messages
+    SET status = 'read'
+    WHERE receiver_id = ? AND sender_id = ? AND status = 'sent'
+  `).run(currentUserId, otherUserId)
+
+  return messages
 }
 
 function formatGroupRow(group) {
@@ -402,17 +413,25 @@ const chatController = {
       }
 
       const rows = db.prepare(`
-        SELECT id, sender_id, sender_role, message, created_at
+        SELECT id, sender_id, sender_role, message, status, created_at
         FROM chat_group_messages
         WHERE group_id = ?
         ORDER BY created_at ASC
       `).all(groupId)
+
+      // Mark all messages as read when retrieved
+      db.prepare(`
+        UPDATE chat_group_messages
+        SET status = 'read'
+        WHERE group_id = ? AND status = 'sent'
+      `).run(groupId)
 
       const data = rows.map((msg) => ({
         id: msg.id,
         senderId: msg.sender_id,
         senderRole: msg.sender_role,
         message: msg.message,
+        status: msg.status,
         createdAt: msg.created_at,
         isMine: msg.sender_id === req.superAdmin.id && msg.sender_role === 'super_admin',
       }))
@@ -434,17 +453,25 @@ const chatController = {
       }
 
       const rows = db.prepare(`
-        SELECT id, sender_id, sender_role, message, created_at
+        SELECT id, sender_id, sender_role, message, status, created_at
         FROM chat_group_messages
         WHERE group_id = ?
         ORDER BY created_at ASC
       `).all(groupId)
+
+      // Mark all messages as read when retrieved
+      db.prepare(`
+        UPDATE chat_group_messages
+        SET status = 'read'
+        WHERE group_id = ? AND status = 'sent'
+      `).run(groupId)
 
       const data = rows.map((msg) => ({
         id: msg.id,
         senderId: msg.sender_id,
         senderRole: msg.sender_role,
         message: msg.message,
+        status: msg.status,
         createdAt: msg.created_at,
         isMine: msg.sender_id === req.admin.id && msg.sender_role === 'admin',
       }))
