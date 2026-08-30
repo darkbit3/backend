@@ -30,9 +30,12 @@ async function seedSuperAdmin() {
   const phone    = process.env.SUPER_ADMIN_PHONE
   const password = process.env.SUPER_ADMIN_PASSWORD
   const name     = process.env.SUPER_ADMIN_NAME
+
   if (!phone || !password || !name) {
-    throw new Error('SUPER_ADMIN_PHONE, SUPER_ADMIN_PASSWORD, and SUPER_ADMIN_NAME must be set')
+    console.warn('[DB] Super admin seed skipped: SUPER_ADMIN_PHONE, SUPER_ADMIN_PASSWORD, and SUPER_ADMIN_NAME are not configured.')
+    return
   }
+
   const hash     = await bcrypt.hash(password, 10)
 
   const existing = db.prepare('SELECT id FROM super_admins WHERE phone = ? OR LOWER(name) = LOWER(?)').get(phone, name)
