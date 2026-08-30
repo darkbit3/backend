@@ -32,3 +32,39 @@ test('seedSuperAdmin skips when super-admin env settings are missing', async () 
     if (prevName) process.env.SUPER_ADMIN_NAME = prevName
   }
 })
+
+test('Render defaults to SQLite unless a real Postgres URL is configured', () => {
+  const prevRender = process.env.RENDER
+  const prevDatabaseUrl = process.env.DATABASE_URL
+  const prevDbUrl = process.env.DB_URL
+  const prevPostgresUrl = process.env.POSTGRES_URL
+  const prevUsePostgres = process.env.USE_POSTGRES
+
+  process.env.RENDER = '1'
+  delete process.env.DATABASE_URL
+  delete process.env.DB_URL
+  delete process.env.POSTGRES_URL
+  delete process.env.USE_POSTGRES
+
+  try {
+    const configPath = require.resolve('../src/config/config')
+    delete require.cache[configPath]
+    const config = require(configPath)
+    assert.ok(config.db.url.includes('database.sqlite') || config.db.url.endsWith('sqlite'))
+  } finally {
+    if (prevRender) process.env.RENDER = prevRender
+    else delete process.env.RENDER
+
+    if (prevDatabaseUrl) process.env.DATABASE_URL = prevDatabaseUrl
+    else delete process.env.DATABASE_URL
+
+    if (prevDbUrl) process.env.DB_URL = prevDbUrl
+    else delete process.env.DB_URL
+
+    if (prevPostgresUrl) process.env.POSTGRES_URL = prevPostgresUrl
+    else delete process.env.POSTGRES_URL
+
+    if (prevUsePostgres) process.env.USE_POSTGRES = prevUsePostgres
+    else delete process.env.USE_POSTGRES
+  }
+})

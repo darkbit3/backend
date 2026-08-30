@@ -3,12 +3,12 @@ const config = require('../config/config')
 
 const useSqlite = Boolean(process.env.USE_SQLITE || process.env.USE_SQLITE === 'true' || process.env.USE_SQLITE === '1')
 const usePostgres = !useSqlite && process.env.NODE_ENV !== 'test' &&
-  (
-    process.env.RENDER ||
+  Boolean(
     process.env.DATABASE_URL ||
     process.env.DB_URL ||
     process.env.POSTGRES_URL ||
-    !process.env.DB_PATH
+    process.env.USE_POSTGRES === 'true' ||
+    process.env.USE_POSTGRES === '1'
   )
 
 function createSqliteDb() {

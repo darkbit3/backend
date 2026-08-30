@@ -16,11 +16,11 @@ function requiredValue(name) {
 
 const defaultPostgresUrl = 'postgresql://neondb_owner:npg_R1LMbTEJ9tXH@ep-spring-art-a5lwohif-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
 const usePostgres = Boolean(
-  process.env.RENDER ||
   process.env.DATABASE_URL ||
   process.env.DB_URL ||
   process.env.POSTGRES_URL ||
-  (!process.env.DB_PATH && process.env.NODE_ENV !== 'test')
+  process.env.USE_POSTGRES === 'true' ||
+  process.env.USE_POSTGRES === '1'
 )
 
 module.exports = {
