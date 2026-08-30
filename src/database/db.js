@@ -1,8 +1,8 @@
 const path = require('path')
 const config = require('../config/config')
 
-const usePostgres = process.env.NODE_ENV !== 'test' &&
-  !process.env.USE_SQLITE &&
+const useSqlite = Boolean(process.env.USE_SQLITE || process.env.USE_SQLITE === 'true' || process.env.USE_SQLITE === '1')
+const usePostgres = !useSqlite && process.env.NODE_ENV !== 'test' &&
   (
     process.env.RENDER ||
     process.env.DATABASE_URL ||
@@ -10,6 +10,17 @@ const usePostgres = process.env.NODE_ENV !== 'test' &&
     process.env.POSTGRES_URL ||
     !process.env.DB_PATH
   )
+
+function createSqliteDb() {
+  const Database = require('better-sqlite3')
+  const dbPath = path.resolve(__dirname, '../../', config.db.path)
+  const db = new Database(dbPath)
+  db.pragma('journal_mode = WAL')
+  db.pragma('foreign_keys = ON')
+  return db
+}
+
+let activeDb = createSqliteDb()
 
 if (usePostgres) {
   const { Pool } = require('pg')
@@ -83,7 +94,7 @@ if (usePostgres) {
     }
   }
 
-  module.exports = {
+  const postgresDb = {
     prepare: (sql) => createStatement(sql),
     exec: (sql) => {
       const statements = String(sql)
@@ -102,12 +113,28 @@ if (usePostgres) {
     query: (sql, params = []) => runQuery(sql, params),
     raw: (sql, params = []) => runQuery(sql, params),
   }
-} else {
-  const Database = require('better-sqlite3')
-  const dbPath = path.resolve(__dirname, '../../', config.db.path)
-  const db = new Database(dbPath)
-  db.pragma('journal_mode = WAL')
-  db.pragma('foreign_keys = ON')
 
-  module.exports = db
+  const probe = pool.query('SELECT 1')
+  probe
+    .then(() => {
+      activeDb = postgresDb
+      console.log('[DB] Using PostgreSQL database.')
+    })
+    .catch((error) => {
+      console.warn('[DB] PostgreSQL connection failed; falling back to SQLite instead.', error.message)
+      activeDb = createSqliteDb()
+      pool.end().catch(() => {})
+    })
+}
+
+module.exports = {
+  prepare: (sql) => activeDb.prepare(sql),
+  exec: (sql) => activeDb.exec(sql),
+  transaction: (callback) => (...args) => callback(...args),
+  close: () => {
+    if (activeDb && typeof activeDb.close === 'function') return activeDb.close()
+    return undefined
+  },
+  query: (sql, params = []) => activeDb.query ? activeDb.query(sql, params) : activeDb.prepare(sql).all(...params),
+  raw: (sql, params = []) => activeDb.raw ? activeDb.raw(sql, params) : activeDb.prepare(sql).all(...params),
 }
