@@ -27,7 +27,7 @@ function generateOtp() {
 }
 
 const userLoginService = {
-  async register(name, phone, password) {
+  async register(name, phone, password, role) {
     const existingUser = UserModel.findByPhone(phone)
     const existingCashier = db.prepare('SELECT id FROM cashiers WHERE phone = ?').get(phone)
     const existingCutter = db.prepare('SELECT id FROM cutters WHERE phone = ?').get(phone)
@@ -43,7 +43,7 @@ const userLoginService = {
       phone,
       password: hash,
       plainPassword: password,
-      role: 'Manufacturer',
+      role,
       accountType: 'Free',
       adminId: null,
     })

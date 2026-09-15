@@ -8,6 +8,7 @@ const { validate }         = require('../middleware/validate')
 router.post('/register',
   validate({
     name:     { required: true, minLength: 2, maxLength: 100 },
+    role:     { required: true, enum: ['Manufacturer', 'Reseller'] },
     phone:    { required: true, pattern: /^251[97]\d{8}$/, patternMessage: 'Phone must be 251 followed by 9 digits starting with 9 or 7' },
     password: { required: true, minLength: 6 },
   }),

@@ -3,8 +3,8 @@ const userLoginService = require('../services/user_login_service')
 const userLoginController = {
   async register(req, res, next) {
     try {
-      const { name, phone, password } = req.body
-      const data = await userLoginService.register(name, phone, password)
+      const { name, phone, password, role } = req.body
+      const data = await userLoginService.register(name, phone, password, role)
       res.status(201).json({ success: true, message: 'Registration successful', data })
     } catch (err) {
       next(err)
