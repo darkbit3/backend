@@ -51,6 +51,7 @@ app.options('*', cors(corsOptions))
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
+  skip: (req) => req.path.startsWith('/api/chat'),
   message: { success: false, message: 'Too many requests, please try again later.' },
 })
 const authLimiter = rateLimit({
