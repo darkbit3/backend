@@ -49,7 +49,19 @@ const userLoginService = {
     })
 
     const user = UserModel.findById(id)
-    return { user }
+    const { accessToken, refreshToken } = generateTokens(id, phone, id)
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        role: user.role,
+        status: user.status,
+        alertThresholdPercentage: user.alert_threshold_percentage || 20,
+      },
+    }
   },
 
   async login(phone, password) {
