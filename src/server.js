@@ -87,6 +87,8 @@ if (config.nodeEnv !== 'test') {
 app.use('/api/auth',        authRoutes)
 app.use('/api/users',       userRoutes)
 app.use('/api/user-auth',   userAuthRoutes)
+// Keep registration compatible with older mobile builds that used this typo.
+app.use('/api/user-augth',  userAuthRoutes)
 app.use('/api/cashiers',    cashierRoutes)
 app.use('/api/sales',       saleRoutes)
 app.use('/api/materials',   materialRoutes)

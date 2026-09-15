@@ -4,10 +4,20 @@ const userLoginController  = require('../controllers/user_login_controller')
 const { authenticateUser } = require('../middleware/auth')
 const { validate }         = require('../middleware/validate')
 
+// POST /api/user-auth/register
+router.post('/register',
+  validate({
+    name:     { required: true, minLength: 2, maxLength: 100 },
+    phone:    { required: true, pattern: /^251[97]\d{8}$/, patternMessage: 'Phone must be 251 followed by 9 digits starting with 9 or 7' },
+    password: { required: true, minLength: 6 },
+  }),
+  userLoginController.register
+)
+
 // POST /api/user-auth/login
 router.post('/login',
   validate({
-    phone:    { required: true, pattern: /^0[97]\d{8}$/, patternMessage: 'Phone must be 09xxxxxxxx or 07xxxxxxxx' },
+    phone:    { required: true, pattern: /^251[97]\d{8}$/, patternMessage: 'Phone must be 251 followed by 9 digits starting with 9 or 7' },
     password: { required: true, minLength: 6 },
   }),
   userLoginController.login

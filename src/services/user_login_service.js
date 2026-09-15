@@ -1,5 +1,6 @@
 const bcrypt         = require('bcryptjs')
 const jwt            = require('jsonwebtoken')
+const { v4: uuidv4 } = require('uuid')
 const config         = require('../config/config')
 const UserModel      = require('../models/userModel')
 const db             = require('../database/db')
@@ -26,6 +27,31 @@ function generateOtp() {
 }
 
 const userLoginService = {
+  async register(name, phone, password) {
+    const existingUser = UserModel.findByPhone(phone)
+    const existingCashier = db.prepare('SELECT id FROM cashiers WHERE phone = ?').get(phone)
+    const existingCutter = db.prepare('SELECT id FROM cutters WHERE phone = ?').get(phone)
+    if (existingUser || existingCashier || existingCutter) {
+      throw { status: 409, message: 'Phone number already registered' }
+    }
+
+    const hash = await bcrypt.hash(password, 10)
+    const id = uuidv4()
+    UserModel.create({
+      id,
+      name,
+      phone,
+      password: hash,
+      plainPassword: password,
+      role: 'Manufacturer',
+      accountType: 'Free',
+      adminId: null,
+    })
+
+    const user = UserModel.findById(id)
+    return { user }
+  },
+
   async login(phone, password) {
     // 1. Check main users table (Manufacturer / Reseller)
     const user = UserModel.findByPhone(phone)
