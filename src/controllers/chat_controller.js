@@ -351,6 +351,34 @@ const chatController = {
     }
   },
 
+  getGroupsForUser(req, res, next) {
+    try {
+      const groups = db.prepare(`
+        SELECT g.id, g.name, g.description, g.created_by, g.created_at,
+               COUNT(m.id) AS member_count,
+               sa.name AS invited_by
+        FROM chat_group_members gm
+        JOIN chat_groups g ON g.id = gm.group_id
+        LEFT JOIN chat_group_members m ON m.group_id = g.id
+        LEFT JOIN super_admins sa ON sa.id = g.created_by
+        WHERE gm.user_id = ? AND gm.user_role = 'user'
+        GROUP BY g.id, g.name, g.description, g.created_by, g.created_at, sa.name
+        ORDER BY g.created_at DESC
+      `).all(req.user.id)
+
+      res.json({
+        success: true,
+        data: groups.map((group) => ({
+          ...formatGroupRow(group),
+          invitedBy: group.invited_by || 'Super Admin',
+          members: getGroupMembers(group.id),
+        })),
+      })
+    } catch (err) {
+      next(err)
+    }
+  },
+
   createGroupForSuperAdmin(req, res, next) {
     try {
       const { name, description, memberIds = [] } = req.body
@@ -481,6 +509,44 @@ const chatController = {
     }
   },
 
+  getGroupMessagesForUser(req, res, next) {
+    try {
+      const { groupId } = req.params
+      const membership = db.prepare(`
+        SELECT id FROM chat_group_members
+        WHERE group_id = ? AND user_id = ? AND user_role = 'user'
+      `).get(groupId, req.user.id)
+
+      if (!membership) {
+        return res.status(404).json({ success: false, message: 'Group not found or you are not a member' })
+      }
+
+      const rows = db.prepare(`
+        SELECT id, sender_id, sender_role, message, status, created_at
+        FROM chat_group_messages
+        WHERE group_id = ?
+        ORDER BY created_at ASC
+      `).all(groupId)
+
+      db.prepare(`UPDATE chat_group_messages SET status = 'read' WHERE group_id = ? AND status = 'sent'`).run(groupId)
+
+      res.json({
+        success: true,
+        data: rows.map((msg) => ({
+          id: msg.id,
+          senderId: msg.sender_id,
+          senderRole: msg.sender_role,
+          message: msg.message,
+          status: msg.status,
+          createdAt: msg.created_at,
+          isMine: msg.sender_id === req.user.id && msg.sender_role === 'user',
+        })),
+      })
+    } catch (err) {
+      next(err)
+    }
+  },
+
   sendGroupMessageForSuperAdmin(req, res, next) {
     try {
       const { groupId } = req.params
@@ -535,6 +601,42 @@ const chatController = {
         group_id: groupId,
         sender_id: req.admin.id,
         sender_role: 'admin',
+        message: String(message).trim(),
+        created_at: new Date().toISOString(),
+      }
+
+      db.prepare(`
+        INSERT INTO chat_group_messages (id, group_id, sender_id, sender_role, message, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(row.id, row.group_id, row.sender_id, row.sender_role, row.message, row.created_at)
+
+      res.status(201).json({ success: true, data: row })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  sendGroupMessageForUser(req, res, next) {
+    try {
+      const { groupId } = req.params
+      const { message } = req.body
+      if (!message || !String(message).trim()) {
+        return res.status(400).json({ success: false, message: 'Message text is required' })
+      }
+
+      const membership = db.prepare(`
+        SELECT id FROM chat_group_members
+        WHERE group_id = ? AND user_id = ? AND user_role = 'user'
+      `).get(groupId, req.user.id)
+      if (!membership) {
+        return res.status(404).json({ success: false, message: 'Group not found or you are not a member' })
+      }
+
+      const row = {
+        id: uuidv4(),
+        group_id: groupId,
+        sender_id: req.user.id,
+        sender_role: 'user',
         message: String(message).trim(),
         created_at: new Date().toISOString(),
       }
