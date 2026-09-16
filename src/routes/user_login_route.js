@@ -4,8 +4,14 @@ const userLoginController  = require('../controllers/user_login_controller')
 const { authenticateUser } = require('../middleware/auth')
 const { validate }         = require('../middleware/validate')
 
-// POST /api/user-auth/register
+// GET /api/user-auth/register-plans
 router.get('/register-plans', userLoginController.getRegisterPlans)
+
+// GET /api/user-auth/payment-info  (public — shows bank accounts & Telegram handle)
+router.get('/payment-info', userLoginController.getPaymentInfo)
+
+// GET /api/user-auth/registration-status/:phone  (public — poll pending approval)
+router.get('/registration-status/:phone', userLoginController.getRegistrationStatus)
 
 router.post('/register',
   validate({

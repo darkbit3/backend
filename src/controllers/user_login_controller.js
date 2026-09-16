@@ -1,10 +1,42 @@
 const userLoginService = require('../services/user_login_service')
 const superAdminManageService = require('../services/super_admin_manage_service')
+const paymentInfoService = require('../services/payment_info_service')
 
 const userLoginController = {
   getRegisterPlans(req, res, next) {
     try {
       res.json({ success: true, data: superAdminManageService.getActiveRegisterPlans() })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  getPaymentInfo(req, res, next) {
+    try {
+      res.json({ success: true, data: paymentInfoService.getPaymentInfo() })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  getRegistrationStatus(req, res, next) {
+    try {
+      const { phone } = req.params
+      const request = paymentInfoService.getLatestRegistrationRequestByPhone(phone)
+      if (!request) {
+        return res.json({ success: true, data: { status: 'None' } })
+      }
+      res.json({
+        success: true,
+        data: {
+          id: request.id,
+          status: request.status,
+          plan: request.plan_label,
+          fee: request.fee,
+          rejectionReason: request.rejection_reason,
+          createdAt: request.created_at,
+        },
+      })
     } catch (err) {
       next(err)
     }
