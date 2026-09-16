@@ -69,12 +69,27 @@ function authHeaders() {
   return { authorization: `Bearer ${superToken()}` }
 }
 
-test('invalid login returns 401 with a useful error', async () => {
-  const response = await request(createApp(), '/api/super-auth/login', {
+test('invalid login returns 401 with specific error for phone vs username', async () => {
+  // Test invalid phone number
+  const phoneRes = await request(createApp(), '/api/super-auth/login', {
     method: 'POST', body: JSON.stringify({ phone: '0900000001', password: 'wrong-password' }),
   })
-  assert.equal(response.status, 401)
-  assert.equal((await response.json()).message, 'Invalid phone or password')
+  assert.equal(phoneRes.status, 401)
+  assert.equal((await phoneRes.json()).message, 'Invalid phone number or password')
+
+  // Test invalid username
+  const userRes = await request(createApp(), '/api/super-auth/login', {
+    method: 'POST', body: JSON.stringify({ phone: 'nonexistent_admin', password: 'wrong-password' }),
+  })
+  assert.equal(userRes.status, 401)
+  assert.equal((await userRes.json()).message, 'Invalid username or password')
+
+  // Test case sensitivity: wrong case on username must fail
+  const caseRes = await request(createApp(), '/api/super-auth/login', {
+    method: 'POST', body: JSON.stringify({ phone: 'SUPER_NAME', password: 'super-password-123' }),
+  })
+  assert.equal(caseRes.status, 401)
+  assert.equal((await caseRes.json()).message, 'Invalid username or password')
 })
 
 test('malformed refresh tokens return 401', async () => {

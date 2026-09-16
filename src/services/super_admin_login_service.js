@@ -24,11 +24,14 @@ function generateTokens(adminId, phone) {
 
 const superAdminLoginService = {
   async login(phone, password) {
+    const isPhone = !/[a-zA-Z]/.test(phone) && /^\d+$/.test(String(phone).replace(/[\s\-().+]/g, ''))
+    const authErrorMessage = isPhone ? 'Invalid phone number or password' : 'Invalid username or password'
+
     const admin = SuperAdminModel.findByPhone(phone)
-    if (!admin) throw { status: 401, message: 'Invalid phone or password' }
+    if (!admin) throw { status: 401, message: authErrorMessage }
 
     const isMatch = await bcrypt.compare(password, admin.password)
-    if (!isMatch) throw { status: 401, message: 'Invalid phone or password' }
+    if (!isMatch) throw { status: 401, message: authErrorMessage }
 
     const { accessToken, refreshToken } = generateTokens(admin.id, admin.phone)
 

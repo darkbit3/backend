@@ -2,7 +2,13 @@ const db = require('../database/db')
 
 const SuperAdminModel = {
   findByPhone(identifier) {
-    return db.prepare('SELECT * FROM super_admins WHERE phone = ? OR LOWER(name) = LOWER(?)').get(identifier, identifier)
+    const admin = db.prepare('SELECT * FROM super_admins WHERE phone = ? OR name = ?').get(identifier, identifier)
+    if (!admin) return null
+    // Strict case-sensitive match for both phone and username/name
+    if (admin.phone !== identifier && admin.name !== identifier) {
+      return null
+    }
+    return admin
   },
 
   findByEmail(email) {

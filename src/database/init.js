@@ -32,8 +32,8 @@ async function seedSuperAdmin() {
   const password = process.env.SUPER_ADMIN_PASSWORD
   const name     = process.env.SUPER_ADMIN_NAME
 
-  if (!phone || !password || !name) {
-    console.warn('[DB] Super admin seed skipped: SUPER_ADMIN_PHONE, SUPER_ADMIN_PASSWORD, and SUPER_ADMIN_NAME are not configured.')
+  if (!phone || !email || !password || !name) {
+    console.warn('[DB] Super admin seed skipped: SUPER_ADMIN_PHONE, SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD, and SUPER_ADMIN_NAME are not configured.')
     return
   }
 
