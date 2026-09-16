@@ -126,6 +126,10 @@ const superAdminManageService = {
     if (!Array.isArray(ids) || ids.length === 0) throw { status: 400, message: 'ids array is required' }
     const result = AdminManageModel.bulkUpdateStatus(ids, status)
     if (result.updated !== ids.length) throw { status: 404, message: `${ids.length - result.updated} admin(s) not found` }
+    // Kill all sessions for deactivated admins immediately
+    if (status === 'Inactive') {
+      ids.forEach(id => db.prepare('DELETE FROM refresh_tokens WHERE admin_id = ?').run(id))
+    }
   },
 
   async bulkResetPassword(ids, password) {
