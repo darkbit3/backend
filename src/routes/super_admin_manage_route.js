@@ -24,6 +24,16 @@ router.post('/bulk/reset-password', validateBulkIds, validate({ password: { requ
 router.get('/settings/register-fee', superAdminManageController.getRegisterFee)
 router.put('/settings/register-fee', superAdminManageController.setRegisterFee)
 
+// Payment info (bank accounts + Telegram)
+router.get('/settings/payment-info', superAdminManageController.getPaymentInfo)
+router.put('/settings/payment-info', superAdminManageController.updatePaymentInfo)
+
+// Registration Approvals
+router.get('/registration-requests', superAdminManageController.getRegistrationRequests)
+router.get('/registration-requests/stats', superAdminManageController.getRegistrationStats)
+router.post('/registration-requests/:id/approve', superAdminManageController.approveRegistration)
+router.post('/registration-requests/:id/reject', superAdminManageController.rejectRegistration)
+
 // Stats
 router.get('/stats', superAdminManageController.getStats)
 
