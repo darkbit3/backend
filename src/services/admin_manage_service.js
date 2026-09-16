@@ -2,16 +2,19 @@ const bcrypt         = require('bcryptjs')
 const { v4: uuidv4 } = require('uuid')
 const UserModel      = require('../models/userModel')
 const db             = require('../database/db')
-const { normalizePhone } = require('../utils/phone')
+const { normalizePhone, getPhoneVariants } = require('../utils/phone')
 
 function isPhoneInUse(phone, excludeId = null) {
-  const user = db.prepare('SELECT id FROM users WHERE phone = ?').get(phone)
+  const variants = getPhoneVariants(phone)
+  const placeholders = variants.map(() => '?').join(', ')
+
+  const user = db.prepare(`SELECT id FROM users WHERE phone IN (${placeholders}) LIMIT 1`).get(...variants)
   if (user && user.id !== excludeId) return true
 
-  const cashier = db.prepare('SELECT id FROM cashiers WHERE phone = ?').get(phone)
+  const cashier = db.prepare(`SELECT id FROM cashiers WHERE phone IN (${placeholders}) LIMIT 1`).get(...variants)
   if (cashier && cashier.id !== excludeId) return true
 
-  const cutter = db.prepare('SELECT id FROM cutters WHERE phone = ?').get(phone)
+  const cutter = db.prepare(`SELECT id FROM cutters WHERE phone IN (${placeholders}) LIMIT 1`).get(...variants)
   if (cutter && cutter.id !== excludeId) return true
 
   return false
