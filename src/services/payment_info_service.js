@@ -96,11 +96,16 @@ const paymentInfoService = {
   createRegistrationRequest({ userId, name, phone, role, planKey, planLabel, fee }) {
     const id = uuidv4()
     const now = new Date().toISOString()
+
+    // Capture the current telegram handle so super admin sees it in Approvals
+    const telegramHandle = getSetting('payment_telegram_username', '@shmeta_admin')
+
     db.prepare(`
       INSERT INTO registration_requests (
-        id, user_id, name, phone, role, plan_key, plan_label, fee, status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?)
-    `).run(id, userId, name, phone, role, planKey, planLabel, Number(fee) || 0, now, now)
+        id, user_id, name, phone, role, plan_key, plan_label, fee, status,
+        telegram_username, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?)
+    `).run(id, userId, name, phone, role, planKey, planLabel, Number(fee) || 0, telegramHandle, now, now)
 
     return db.prepare('SELECT * FROM registration_requests WHERE id = ?').get(id)
   },
