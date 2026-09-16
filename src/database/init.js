@@ -58,8 +58,12 @@ async function seedSuperAdmin() {
 // Allow running directly: node src/database/init.js
 if (require.main === module) {
   createTables()
-  Promise.all([seedAdmin(), seedSuperAdmin()])
-    .then(() => console.log('[DB] Done.'))
+  seedAdmin()
+    .then(() => seedSuperAdmin())
+    .then(async () => {
+      console.log('[DB] Done.')
+      await db.close()
+    })
     .catch(console.error)
 }
 
