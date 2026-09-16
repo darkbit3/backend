@@ -309,6 +309,24 @@ function createTables() {
     );
   `)
 
+  // Registration requests for paid plan approvals
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS registration_requests (
+      id               TEXT PRIMARY KEY,
+      user_id          TEXT NOT NULL,
+      name             TEXT NOT NULL,
+      phone            TEXT NOT NULL,
+      role             TEXT NOT NULL,
+      plan_key         TEXT NOT NULL,
+      plan_label       TEXT NOT NULL,
+      fee              NUMERIC NOT NULL DEFAULT 0,
+      status           TEXT NOT NULL DEFAULT 'Pending',
+      rejection_reason TEXT,
+      created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `)
+
   console.log('[DB] Tables created or already exist.')
 
   // ── Migrations ────────────────────────────────────────────────────────────
