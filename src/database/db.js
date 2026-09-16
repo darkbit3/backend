@@ -1,14 +1,14 @@
 const path = require('path')
 const config = require('../config/config')
 
-const useSqlite = Boolean(process.env.USE_SQLITE || process.env.USE_SQLITE === 'true' || process.env.USE_SQLITE === '1')
+const isTrue = (value) => ['true', '1', 'yes'].includes(String(value || '').toLowerCase())
+const useSqlite = isTrue(process.env.USE_SQLITE)
 const usePostgres = !useSqlite && process.env.NODE_ENV !== 'test' &&
   Boolean(
     process.env.DATABASE_URL ||
     process.env.DB_URL ||
     process.env.POSTGRES_URL ||
-    process.env.USE_POSTGRES === 'true' ||
-    process.env.USE_POSTGRES === '1'
+    isTrue(process.env.USE_POSTGRES)
   )
 
 function createSqliteDb() {
@@ -54,11 +54,24 @@ function createPostgresDb() {
 
   if (probeError) {
     pool.end().catch(() => {})
-    console.warn('[DB] PostgreSQL connection failed; falling back to SQLite instead.', probeError.message)
-    return createSqliteDb()
+    throw new Error(`[DB] PostgreSQL connection failed: ${probeError.message}`)
   }
 
   console.log('[DB] Using PostgreSQL database.')
+
+  let transactionClient = null
+
+  function waitFor(promise) {
+    const done = { value: false }
+    let result
+    let error
+    promise
+      .then((value) => { result = value; done.value = true })
+      .catch((err) => { error = err; done.value = true })
+    deasync.loopWhile(() => !done.value)
+    if (error) throw error
+    return result
+  }
 
   function normalizeSql(sql) {
     return String(sql)
@@ -77,7 +90,8 @@ function createPostgresDb() {
     let result
     let err
 
-    pool.query(text, params)
+    const queryTarget = transactionClient || pool
+    queryTarget.query(text, params)
       .then((res) => {
         result = res
         done.value = true
@@ -127,7 +141,24 @@ function createPostgresDb() {
 
       return { changes: 0 }
     },
-    transaction: (callback) => (...args) => callback(...args),
+    transaction: (callback) => (...args) => {
+      if (transactionClient) return callback(...args)
+
+      const client = waitFor(pool.connect())
+      transactionClient = client
+      try {
+        waitFor(client.query('BEGIN'))
+        const result = callback(...args)
+        waitFor(client.query('COMMIT'))
+        return result
+      } catch (error) {
+        try { waitFor(client.query('ROLLBACK')) } catch (_) {}
+        throw error
+      } finally {
+        transactionClient = null
+        client.release()
+      }
+    },
     close: () => pool.end(),
     query: (sql, params = []) => runQuery(sql, params),
     raw: (sql, params = []) => runQuery(sql, params),
@@ -137,6 +168,7 @@ function createPostgresDb() {
 const activeDb = usePostgres ? createPostgresDb() : createSqliteDb()
 
 module.exports = {
+  dialect: usePostgres ? 'postgres' : 'sqlite',
   prepare: (sql) => activeDb.prepare(sql),
   exec: (sql) => activeDb.exec(sql),
   transaction: (callback) => (...args) => callback(...args),

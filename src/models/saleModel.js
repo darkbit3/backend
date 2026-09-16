@@ -19,12 +19,12 @@ const SaleModel = {
       `)
       const updateStockById = db.prepare(`
         UPDATE materials
-        SET quantity = MAX(0, quantity - ?)
+        SET quantity = CASE WHEN quantity - ? < 0 THEN 0 ELSE quantity - ? END
         WHERE id = ? AND user_id = ?
       `)
       const updateStockByName = db.prepare(`
         UPDATE materials
-        SET quantity = MAX(0, quantity - ?)
+        SET quantity = CASE WHEN quantity - ? < 0 THEN 0 ELSE quantity - ? END
         WHERE user_id = ? AND LOWER(name) = LOWER(?)
       `)
 
@@ -32,13 +32,13 @@ const SaleModel = {
         insertItem.run(uuid(), id, item.material, item.materialId || null, item.quantity, item.unitPrice, item.total)
         // Prefer ID-based deduction (accurate); fall back to name match
         if (item.materialId) {
-          const result = updateStockById.run(item.quantity, item.materialId, ownerId)
+          const result = updateStockById.run(item.quantity, item.quantity, item.materialId, ownerId)
           if (result.changes === 0) {
             // ID didn't match (e.g. cashier from different owner) — try name
-            updateStockByName.run(item.quantity, ownerId, item.material)
+            updateStockByName.run(item.quantity, item.quantity, ownerId, item.material)
           }
         } else {
-          updateStockByName.run(item.quantity, ownerId, item.material)
+          updateStockByName.run(item.quantity, item.quantity, ownerId, item.material)
         }
       }
 

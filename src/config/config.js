@@ -14,14 +14,18 @@ function requiredValue(name) {
   return value
 }
 
-const defaultPostgresUrl = 'postgresql://neondb_owner:npg_R1LMbTEJ9tXH@ep-spring-art-a5lwohif-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
+const postgresUrl = process.env.DATABASE_URL || process.env.DB_URL || process.env.POSTGRES_URL
+const isTrue = (value) => ['true', '1', 'yes'].includes(String(value || '').toLowerCase())
 const usePostgres = Boolean(
   process.env.DATABASE_URL ||
   process.env.DB_URL ||
   process.env.POSTGRES_URL ||
-  process.env.USE_POSTGRES === 'true' ||
-  process.env.USE_POSTGRES === '1'
+  isTrue(process.env.USE_POSTGRES)
 )
+
+if (usePostgres && !postgresUrl) {
+  throw new Error('DATABASE_URL must be set when PostgreSQL is enabled')
+}
 
 module.exports = {
   port: process.env.PORT || 5000,
@@ -35,7 +39,7 @@ module.exports = {
   db: {
     path: process.env.DB_PATH || './data/database.sqlite',
     url: usePostgres
-      ? (process.env.DATABASE_URL || process.env.DB_URL || process.env.POSTGRES_URL || defaultPostgresUrl)
+      ? postgresUrl
       : (process.env.DB_PATH || './data/database.sqlite'),
   },
   admin: {
