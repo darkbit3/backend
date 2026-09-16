@@ -5,11 +5,11 @@ const db               = require('../database/db')
 const { normalizePhone } = require('../utils/phone')
 
 const DEFAULT_REGISTER_FEES = {
-  oneMonth: { months: 1, label: 'Free for 1 month', fee: 0, enabled: true },
-  twoMonths: { months: 2, label: 'Free for 2 months', fee: 0, enabled: true },
-  threeMonths: { months: 3, label: 'Free for 3 months', fee: 0, enabled: true },
-  sixMonths: { months: 6, label: 'Free for 6 months', fee: 0, enabled: true },
-  oneYear: { months: 12, label: 'Free for 1 year', fee: 0, enabled: true },
+  oneMonth:    { months: 1,  label: '1 Month Free Trial',  fee: 0,    enabled: true },
+  twoMonths:   { months: 2,  label: '2 Months Plan',       fee: 350,  enabled: true },
+  threeMonths: { months: 3,  label: '3 Months Plan',       fee: 500,  enabled: true },
+  sixMonths:   { months: 6,  label: '6 Months Plan',       fee: 950,  enabled: true },
+  oneYear:     { months: 12, label: '1 Year Annual Plan',   fee: 1800, enabled: true },
 }
 
 function getSettingValue(key, fallback = null) {

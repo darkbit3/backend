@@ -73,7 +73,7 @@ const userLoginService = {
 
     const hash = await bcrypt.hash(password, 10)
     const id = uuidv4()
-    const isFree = registrationPlan.fee === 0
+    const isFree = registrationPlan.key === 'oneMonth' && Number(registrationPlan.fee) === 0
 
     UserModel.create({
       id,
