@@ -137,6 +137,30 @@ async function start() {
   return new Promise((resolve) => {
     const server = app.listen(port, '0.0.0.0', () => {
       console.log(`[SERVER] Running on http://0.0.0.0:${port} (${config.nodeEnv})`)
+
+      // ── Keep-alive self-ping (Render free tier) ──────────────────────────
+      // Pings /health every 14 minutes so the service never goes to sleep.
+      if (config.nodeEnv === 'production') {
+        // Render provides RENDER_EXTERNAL_URL automatically
+        const RENDER_URL = process.env.RENDER_EXTERNAL_URL
+          || process.env.SERVICE_URL
+          || `http://localhost:${port}`
+        const pingUrl = `${RENDER_URL.replace(/\/$/, '')}/health`
+        setInterval(() => {
+          const https = require('https')
+          const http = require('http')
+          const client = pingUrl.startsWith('https') ? https : http
+          const req = client.get(pingUrl, (res) => {
+            console.log(`[KEEP-ALIVE] Pinged ${pingUrl} → ${res.statusCode}`)
+          })
+          req.on('error', (err) => {
+            console.warn(`[KEEP-ALIVE] Ping failed: ${err.message}`)
+          })
+          req.setTimeout(10000, () => req.destroy())
+        }, 14 * 60 * 1000) // every 14 minutes
+        console.log(`[KEEP-ALIVE] Self-ping enabled → ${pingUrl}`)
+      }
+
       resolve(server)
     })
   })
