@@ -321,11 +321,29 @@ function createTables() {
       plan_label       TEXT NOT NULL,
       fee              NUMERIC NOT NULL DEFAULT 0,
       status           TEXT NOT NULL DEFAULT 'Pending',
+      telegram_username TEXT,
+      account_detail   TEXT,
       rejection_reason TEXT,
       created_at       TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `)
+
+  // Dedicated Payment Accounts table in database
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS payment_accounts (
+      id             TEXT PRIMARY KEY,
+      bank           TEXT NOT NULL,
+      account_name   TEXT NOT NULL,
+      account_number TEXT NOT NULL,
+      is_active      BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `)
+
+  try { db.exec(`ALTER TABLE registration_requests ADD COLUMN telegram_username TEXT;`) } catch (_) {}
+  try { db.exec(`ALTER TABLE registration_requests ADD COLUMN account_detail TEXT;`) } catch (_) {}
 
   console.log('[DB] Tables created or already exist.')
 

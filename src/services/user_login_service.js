@@ -296,5 +296,3 @@ const userLoginService = {
 }
 
 module.exports = userLoginService
-
-module.exports = userLoginService
