@@ -27,8 +27,8 @@ const errorHandler = require('../src/middleware/errorHandler')
 createTables()
 const superAdminId = crypto.randomUUID()
 const adminId = crypto.randomUUID()
-db.prepare('INSERT INTO super_admins (id, phone, password, name) VALUES (?, ?, ?, ?)')
-  .run(superAdminId, '0900000001', bcrypt.hashSync('correct-password', 10), 'Test Super Admin')
+db.prepare('INSERT INTO super_admins (id, phone, password, name, email) VALUES (?, ?, ?, ?, ?)')
+  .run(superAdminId, '0900000001', bcrypt.hashSync('correct-password', 10), 'Test Super Admin', 'super@example.com')
 db.prepare('INSERT INTO admins (id, phone, password, name, status) VALUES (?, ?, ?, ?, ?)')
   .run(adminId, '0900000002', bcrypt.hashSync('admin-password', 10), 'Managed Admin', 'Active')
 
@@ -117,6 +117,22 @@ test('password change reports a missing super-admin as 404', async () => {
     body: JSON.stringify({ currentPassword: 'old-password', newPassword: 'new-password' }),
   })
   assert.equal(response.status, 404)
+})
+
+test('super admin can reset a password using email OTP', async () => {
+  const checkResponse = await request(createApp(), '/api/super-auth/forgot-password/check-email', {
+    method: 'POST', body: JSON.stringify({ email: 'super@example.com' }),
+  })
+  assert.equal(checkResponse.status, 200)
+  const checkData = await checkResponse.json()
+  assert.equal(typeof checkData.data.otp, 'string')
+
+  const resetResponse = await request(createApp(), '/api/super-auth/forgot-password/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email: 'super@example.com', otp: checkData.data.otp, newPassword: 'new-password' }),
+  })
+  assert.equal(resetResponse.status, 200)
+  assert.equal((await resetResponse.json()).message, 'Password reset successfully')
 })
 
 test('super admin can view and update the register fee setting', async () => {

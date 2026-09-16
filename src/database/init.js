@@ -28,6 +28,7 @@ async function seedAdmin() {
 
 async function seedSuperAdmin() {
   const phone    = process.env.SUPER_ADMIN_PHONE
+  const email    = process.env.SUPER_ADMIN_EMAIL
   const password = process.env.SUPER_ADMIN_PASSWORD
   const name     = process.env.SUPER_ADMIN_NAME
 
@@ -42,13 +43,14 @@ async function seedSuperAdmin() {
 
   if (!existing) {
     db.prepare(
-      'INSERT INTO super_admins (id, phone, password, name) VALUES (?, ?, ?, ?)'
-    ).run(uuidv4(), phone, hash, name)
+      'INSERT INTO super_admins (id, phone, email, password, name) VALUES (?, ?, ?, ?, ?)'
+    ).run(uuidv4(), phone, email || null, hash, name)
     console.log(`[DB] Super admin created — username: ${phone}`)
   } else {
     db.prepare(
       `UPDATE super_admins SET phone = ?, name = ?, password = ?, updated_at = datetime('now') WHERE id = ?`
     ).run(phone, name, hash, existing.id)
+    if (email) db.prepare('UPDATE super_admins SET email = ? WHERE id = ?').run(email, existing.id)
     console.log(`[DB] Super admin password synced — username: ${phone}`)
   }
 }

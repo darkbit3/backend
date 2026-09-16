@@ -19,6 +19,22 @@ router.post('/refresh', superAdminLoginController.refresh)
 // POST /api/super-auth/logout
 router.post('/logout', superAdminLoginController.logout)
 
+// POST /api/super-auth/forgot-password/check-email
+router.post('/forgot-password/check-email',
+  validate({ email: { required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, patternMessage: 'Enter a valid email address' } }),
+  superAdminLoginController.checkEmail
+)
+
+// POST /api/super-auth/forgot-password/verify-otp
+router.post('/forgot-password/verify-otp',
+  validate({
+    email: { required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, patternMessage: 'Enter a valid email address' },
+    otp: { required: true, pattern: /^\d{6}$/, patternMessage: 'OTP must be 6 digits' },
+    newPassword: { required: true, minLength: 6 },
+  }),
+  superAdminLoginController.verifyEmailOtp
+)
+
 // GET /api/super-auth/me  (protected)
 router.get('/me', authenticateSuperAdmin, superAdminLoginController.me)
 

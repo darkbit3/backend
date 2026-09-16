@@ -53,6 +53,24 @@ const superAdminLoginController = {
       next(err)
     }
   },
+
+  checkEmail(req, res, next) {
+    try {
+      const data = superAdminLoginService.checkEmail(req.body.email)
+      res.json({ success: true, data })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  async verifyEmailOtp(req, res, next) {
+    try {
+      await superAdminLoginService.verifyEmailOtp(req.body.email, req.body.otp, req.body.newPassword)
+      res.json({ success: true, message: 'Password reset successfully' })
+    } catch (err) {
+      next(err)
+    }
+  },
 }
 
 module.exports = superAdminLoginController

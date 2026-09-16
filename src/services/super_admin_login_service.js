@@ -5,6 +5,12 @@ const config             = require('../config/config')
 const SuperAdminModel    = require('../models/superAdminModel')
 const db                 = require('../database/db')
 
+const otpStore = new Map()
+
+function generateOtp() {
+  return String(Math.floor(100000 + Math.random() * 900000))
+}
+
 function generateTokens(adminId, phone) {
   const payload = { id: adminId, phone, type: 'super_admin' }
   const accessToken = jwt.sign(payload, config.jwt.secret, {
@@ -83,6 +89,34 @@ const superAdminLoginService = {
     if (!isMatch) throw { status: 400, message: 'Current password is incorrect' }
     const hash = await bcrypt.hash(newPassword, 10)
     SuperAdminModel.updatePassword(admin.id, hash)
+  },
+
+  checkEmail(email) {
+    const normalizedEmail = String(email || '').trim().toLowerCase()
+    const admin = SuperAdminModel.findByEmail(normalizedEmail)
+    if (!admin) throw { status: 404, message: 'No super admin found with this email address.' }
+
+    const otp = generateOtp()
+    otpStore.set(normalizedEmail, { otp, expiresAt: Date.now() + 5 * 60 * 1000, adminId: admin.id })
+    console.log(`[OTP] Super admin email ${normalizedEmail} -> OTP ${otp}`)
+    return { email: normalizedEmail, otp }
+  },
+
+  async verifyEmailOtp(email, otp, newPassword) {
+    const normalizedEmail = String(email || '').trim().toLowerCase()
+    const entry = otpStore.get(normalizedEmail)
+    if (!entry) throw { status: 400, message: 'No OTP request found. Please request again.' }
+    if (Date.now() > entry.expiresAt) {
+      otpStore.delete(normalizedEmail)
+      throw { status: 400, message: 'OTP has expired. Please request again.' }
+    }
+    if (entry.otp !== String(otp)) throw { status: 400, message: 'Invalid OTP. Please try again.' }
+
+    const hash = await bcrypt.hash(newPassword, 10)
+    const admin = SuperAdminModel.findByEmail(normalizedEmail)
+    if (!admin || admin.id !== entry.adminId) throw { status: 404, message: 'Super admin not found' }
+    SuperAdminModel.updatePassword(admin.id, hash)
+    otpStore.delete(normalizedEmail)
   },
 }
 

@@ -9,6 +9,7 @@ process.env.ADMIN_PASSWORD = 'test-admin-password'
 process.env.SUPER_ADMIN_PHONE = '0900000001'
 process.env.SUPER_ADMIN_PASSWORD = 'test-super-password'
 process.env.SUPER_ADMIN_NAME = 'Test Super Admin'
+process.env.SUPER_ADMIN_EMAIL = 'super@example.com'
 process.env.DB_PATH = './data/startup-test.sqlite'
 
 const { seedSuperAdmin } = require('../src/database/init')

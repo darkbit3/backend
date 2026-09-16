@@ -6,6 +6,7 @@ function createTables() {
     CREATE TABLE IF NOT EXISTS admins (
       id          TEXT PRIMARY KEY,
       phone       TEXT NOT NULL UNIQUE,
+      email       TEXT,
       password    TEXT NOT NULL,
       name        TEXT NOT NULL DEFAULT 'Admin',
       created_at  TEXT NOT NULL DEFAULT (datetime('now')),
@@ -279,6 +280,9 @@ function createTables() {
 
   try {
     db.exec(`ALTER TABLE super_admins ADD COLUMN status TEXT NOT NULL DEFAULT 'Active';`)
+  } catch (_) {}
+  try {
+    db.exec(`ALTER TABLE super_admins ADD COLUMN email TEXT;`)
   } catch (_) {}
 
   // Super admin refresh tokens
