@@ -66,6 +66,7 @@ function createPostgresDb() {
 
   function runQuery(sql, params = []) {
     const text = normalizeSql(sql)
+    if (process.env.DEBUG_DB_STARTUP === 'true') console.log(`[DB] Query: ${text.slice(0, 120).replace(/\s+/g, ' ')}`)
     const done = { value: false }
     let result
     let err

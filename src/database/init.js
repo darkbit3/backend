@@ -5,7 +5,7 @@ const { createTables } = require('./schema')
 const db             = require('./db')
 const config         = require('../config/config')
 
-async function seedAdmin() {
+function seedAdmin() {
   const phone    = config.admin.phone
   const password = config.admin.password
     const hash     = bcrypt.hashSync(password, 10)
@@ -26,7 +26,7 @@ async function seedAdmin() {
   }
 }
 
-async function seedSuperAdmin() {
+function seedSuperAdmin() {
   const phone    = process.env.SUPER_ADMIN_PHONE
   const email    = process.env.SUPER_ADMIN_EMAIL
   const password = process.env.SUPER_ADMIN_PASSWORD

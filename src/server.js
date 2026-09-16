@@ -140,8 +140,8 @@ app.use(errorHandler)
 // ── Boot: init DB then start listening ────────────────────────────────────
 async function start() {
   createTables()
-  await seedAdmin()
-  await seedSuperAdmin()
+  seedAdmin()
+  seedSuperAdmin()
 
   const port = Number(process.env.PORT) || config.port || 5000
   return new Promise((resolve) => {
