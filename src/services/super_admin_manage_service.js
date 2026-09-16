@@ -142,14 +142,15 @@ const superAdminManageService = {
   setRegisterFee(plans) {
     const normalized = {}
     for (const [key, defaults] of Object.entries(DEFAULT_REGISTER_FEES)) {
-      const numericFee = Number(plans?.[key]?.fee)
+      const plan = plans?.[key] || {}
+      const numericFee = Number(plan.fee)
       if (!Number.isFinite(numericFee) || numericFee < 0) {
         throw { status: 400, message: 'Each register fee must be a valid non-negative number' }
       }
       normalized[key] = {
         ...defaults,
         fee: Number(numericFee.toFixed(2)),
-        enabled: plans[key].enabled === true,
+        enabled: plan.enabled === true,
       }
     }
 
