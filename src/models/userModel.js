@@ -1,4 +1,5 @@
 const db = require('../database/db')
+const { getPhoneVariants } = require('../utils/phone')
 
 const UserModel = {
   findAll(adminId) {
@@ -43,7 +44,9 @@ const UserModel = {
   },
 
   findByPhone(phone) {
-    return db.prepare('SELECT * FROM users WHERE phone = ?').get(phone)
+    const variants = getPhoneVariants(phone)
+    const placeholders = variants.map(() => '?').join(', ')
+    return db.prepare(`SELECT * FROM users WHERE phone IN (${placeholders}) LIMIT 1`).get(...variants)
   },
 
   create({ id, name, phone, password, plainPassword, role, accountType, freeUntil, adminId }) {
