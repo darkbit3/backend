@@ -5,6 +5,7 @@ const config         = require('../config/config')
 const UserModel      = require('../models/userModel')
 const db             = require('../database/db')
 const superAdminManageService = require('./super_admin_manage_service')
+const paymentInfoService = require('./payment_info_service')
 const { normalizePhone } = require('../utils/phone')
 
 function generateTokens(userId, phone, ownerId = null) {
@@ -72,6 +73,8 @@ const userLoginService = {
 
     const hash = await bcrypt.hash(password, 10)
     const id = uuidv4()
+    const isFree = registrationPlan.fee === 0
+
     UserModel.create({
       id,
       name,
@@ -79,13 +82,44 @@ const userLoginService = {
       password: hash,
       plainPassword: password,
       role,
-      accountType: 'Free',
+      accountType: isFree ? 'Free' : 'Paid',
       adminId: null,
     })
+
+    if (!isFree) {
+      // Deactivate user until payment approved by super admin
+      db.prepare("UPDATE users SET status = 'Inactive' WHERE id = ?").run(id)
+      paymentInfoService.createRegistrationRequest({
+        userId: id,
+        name,
+        phone: normalizedPhone,
+        role,
+        planKey: registrationPlan.key,
+        planLabel: registrationPlan.label,
+        fee: registrationPlan.fee,
+      })
+
+      const user = UserModel.findById(id)
+      return {
+        pendingApproval: true,
+        registrationFree: false,
+        registrationPlan,
+        user: {
+          id: user.id,
+          name: user.name,
+          phone: user.phone,
+          role: user.role,
+          status: 'Pending',
+          alertThresholdPercentage: user.alert_threshold_percentage || 20,
+        },
+        message: 'Registration submitted. Please send payment receipt on Telegram for review.',
+      }
+    }
 
     const user = UserModel.findById(id)
     const { accessToken, refreshToken } = generateTokens(id, normalizedPhone, id)
     return {
+      pendingApproval: false,
       accessToken,
       refreshToken,
       user: {
@@ -97,7 +131,7 @@ const userLoginService = {
         alertThresholdPercentage: user.alert_threshold_percentage || 20,
       },
       registrationPlan,
-      registrationFree: registrationPlan.fee === 0,
+      registrationFree: true,
     }
   },
 
@@ -105,8 +139,26 @@ const userLoginService = {
     const found = findByPhoneAcrossTables(phone)
     const user = found?.table === 'users' ? found.account : null
     if (user) {
-      if (user.status === 'Inactive')
+      if (user.status === 'Inactive') {
+        const req = paymentInfoService.getLatestRegistrationRequestByPhone(phone)
+        if (req && req.status === 'Pending') {
+          throw {
+            status: 403,
+            code: 'REGISTRATION_PENDING',
+            message: 'Your registration is awaiting admin approval. Please ensure you sent your payment screenshot on Telegram.',
+            plan: req.plan_label,
+            fee: req.fee,
+          }
+        }
+        if (req && req.status === 'Rejected') {
+          throw {
+            status: 403,
+            code: 'REGISTRATION_REJECTED',
+            message: `Your registration was rejected: ${req.rejection_reason || 'Payment verification could not be confirmed.'}`,
+          }
+        }
         throw { status: 403, message: 'Your account is inactive. Please contact an admin.' }
+      }
       const isMatch = await bcrypt.compare(password, user.password)
       if (!isMatch) throw { status: 401, message: 'Invalid phone or password' }
       const { accessToken, refreshToken } = generateTokens(user.id, user.phone, user.id)
