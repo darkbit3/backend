@@ -3,6 +3,12 @@ const { v4: uuidv4 }   = require('uuid')
 const AdminManageModel = require('../models/adminManageModel')
 const db               = require('../database/db')
 
+const DEFAULT_REGISTER_FEES = {
+  oneMonth: 0,
+  twoMonths: 0,
+  threeMonths: 0,
+}
+
 function getSettingValue(key, fallback = null) {
   const row = db.prepare('SELECT setting_value FROM system_settings WHERE setting_key = ?').get(key)
   if (!row) return fallback
@@ -104,20 +110,33 @@ const superAdminManageService = {
   },
 
   getRegisterFee() {
-    const raw = getSettingValue('register_fee', '0')
-    const fee = Number(raw)
-    if (Number.isNaN(fee)) return 0
-    return fee
-  },
-
-  setRegisterFee(fee) {
-    const numericFee = Number(fee)
-    if (!Number.isFinite(numericFee) || numericFee < 0) {
-      throw { status: 400, message: 'Register fee must be a valid non-negative number' }
+    const raw = getSettingValue('register_fee_plans')
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        return {
+          oneMonth: Number.isFinite(Number(parsed.oneMonth)) ? Number(parsed.oneMonth) : 0,
+          twoMonths: Number.isFinite(Number(parsed.twoMonths)) ? Number(parsed.twoMonths) : 0,
+          threeMonths: Number.isFinite(Number(parsed.threeMonths)) ? Number(parsed.threeMonths) : 0,
+        }
+      } catch (_) {}
     }
 
-    const rounded = Number(numericFee.toFixed(2))
-    upsertSetting('register_fee', rounded, 'One-time registration fee charged to new users')
+    const legacyFee = Number(getSettingValue('register_fee', '0'))
+    return { ...DEFAULT_REGISTER_FEES, oneMonth: Number.isFinite(legacyFee) ? legacyFee : 0 }
+  },
+
+  setRegisterFee(plans) {
+    const normalized = {}
+    for (const key of Object.keys(DEFAULT_REGISTER_FEES)) {
+      const numericFee = Number(plans?.[key])
+      if (!Number.isFinite(numericFee) || numericFee < 0) {
+        throw { status: 400, message: 'Each register fee must be a valid non-negative number' }
+      }
+      normalized[key] = Number(numericFee.toFixed(2))
+    }
+
+    upsertSetting('register_fee_plans', JSON.stringify(normalized), 'Registration fees for 1, 2, and 3 month plans')
     return this.getRegisterFee()
   },
 }

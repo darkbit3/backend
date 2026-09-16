@@ -113,7 +113,8 @@ const superAdminManageController = {
 
   getRegisterFee(req, res, next) {
     try {
-      const data = { fee: superAdminManageService.getRegisterFee() }
+      const plans = superAdminManageService.getRegisterFee()
+      const data = { ...plans, fee: plans.oneMonth }
       res.json({ success: true, data, message: 'Register fee fetched successfully' })
     } catch (err) {
       next(err)
@@ -122,8 +123,8 @@ const superAdminManageController = {
 
   setRegisterFee(req, res, next) {
     try {
-      const fee = superAdminManageService.setRegisterFee(req.body.fee)
-      res.json({ success: true, data: { fee }, message: 'Register fee updated successfully' })
+      const plans = superAdminManageService.setRegisterFee(req.body)
+      res.json({ success: true, data: { ...plans, fee: plans.oneMonth }, message: 'Register fee updated successfully' })
     } catch (err) {
       next(err)
     }

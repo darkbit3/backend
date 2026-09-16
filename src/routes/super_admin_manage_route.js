@@ -22,7 +22,7 @@ router.post('/bulk/reset-password', validateBulkIds, validate({ password: { requ
 
 // Settings
 router.get('/settings/register-fee', superAdminManageController.getRegisterFee)
-router.put('/settings/register-fee', validate({ fee: { required: true, type: 'number' } }), superAdminManageController.setRegisterFee)
+router.put('/settings/register-fee', superAdminManageController.setRegisterFee)
 
 // Stats
 router.get('/stats', superAdminManageController.getStats)

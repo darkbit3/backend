@@ -123,15 +123,19 @@ test('super admin can view and update the register fee setting', async () => {
   })
   assert.equal(getResponse.status, 200)
   const current = await getResponse.json()
-  assert.equal(typeof current.data.fee, 'number')
+  assert.equal(typeof current.data.oneMonth, 'number')
+  assert.equal(typeof current.data.twoMonths, 'number')
+  assert.equal(typeof current.data.threeMonths, 'number')
 
   const updateResponse = await request(createApp(), '/api/super/admins/settings/register-fee', {
     method: 'PUT', headers: authHeaders(),
-    body: JSON.stringify({ fee: 1500 }),
+    body: JSON.stringify({ oneMonth: 1000, twoMonths: 1800, threeMonths: 2400 }),
   })
 
   assert.equal(updateResponse.status, 200)
   const updated = await updateResponse.json()
-  assert.equal(updated.data.fee, 1500)
+  assert.equal(updated.data.oneMonth, 1000)
+  assert.equal(updated.data.twoMonths, 1800)
+  assert.equal(updated.data.threeMonths, 2400)
   assert.equal(updated.message, 'Register fee updated successfully')
 })
