@@ -141,6 +141,7 @@ test('super admin can reset a password using email OTP', async () => {
   assert.equal(checkResponse.status, 200)
   const checkData = await checkResponse.json()
   assert.equal(typeof checkData.data.otp, 'string')
+  assert.equal(checkData.data.expiresInSeconds, 600)
 
   const resetResponse = await request(createApp(), '/api/super-auth/forgot-password/verify-otp', {
     method: 'POST',

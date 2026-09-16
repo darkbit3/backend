@@ -31,8 +31,8 @@ async function sendSuperAdminOtp(email, otp) {
     from: process.env.SMTP_FROM,
     to: email,
     subject: 'Shmeta Super Admin Password Reset Code',
-    text: `Your Shmeta password reset code is ${otp}. It expires in 5 minutes.`,
-    html: `<p>Your Shmeta password reset code is:</p><p style="font-size:24px;font-weight:bold;letter-spacing:6px">${otp}</p><p>This code expires in 5 minutes.</p>`,
+    text: `Your Shmeta password reset code is ${otp}. It expires in 10 minutes.`,
+    html: `<p>Your Shmeta password reset code is:</p><p style="font-size:24px;font-weight:bold;letter-spacing:6px">${otp}</p><p>This code expires in 10 minutes.</p>`,
   })
 
   return { delivered: true }

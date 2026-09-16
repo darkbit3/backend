@@ -7,6 +7,7 @@ const db                 = require('../database/db')
 const { sendSuperAdminOtp } = require('./email_service')
 
 const otpStore = new Map()
+const OTP_TTL_MS = 10 * 60 * 1000
 
 function generateOtp() {
   return String(Math.floor(100000 + Math.random() * 900000))
@@ -101,10 +102,15 @@ const superAdminLoginService = {
     if (!admin) throw { status: 404, message: 'No super admin found with this email address.' }
 
     const otp = generateOtp()
-    otpStore.set(normalizedEmail, { otp, expiresAt: Date.now() + 5 * 60 * 1000, adminId: admin.id })
+    otpStore.set(normalizedEmail, { otp, expiresAt: Date.now() + OTP_TTL_MS, adminId: admin.id })
     try {
       const delivery = await sendSuperAdminOtp(normalizedEmail, otp)
-      return { email: normalizedEmail, otp: delivery.delivered ? undefined : otp, delivered: delivery.delivered }
+      return {
+        email: normalizedEmail,
+        otp: delivery.delivered ? undefined : otp,
+        delivered: delivery.delivered,
+        expiresInSeconds: OTP_TTL_MS / 1000,
+      }
     } catch (err) {
       otpStore.delete(normalizedEmail)
       throw err
