@@ -20,6 +20,36 @@ function generateTokens(userId, phone, ownerId = null) {
   return { accessToken, refreshToken }
 }
 
+function phoneVariants(phone) {
+  const value = String(phone || '').trim()
+  const digits = value.replace(/\D/g, '')
+  let local = digits
+
+  if (local.startsWith('251')) local = local.slice(3)
+  if (local.startsWith('0')) local = local.slice(1)
+
+  if (local.length === 9 && (local[0] === '9' || local[0] === '7')) {
+    return ['0' + local, '251' + local, local]
+  }
+
+  return [value]
+}
+
+function findByPhoneAcrossTables(phone) {
+  for (const variant of phoneVariants(phone)) {
+    const user = UserModel.findByPhone(variant)
+    if (user) return { account: user, table: 'users' }
+
+    const cashier = db.prepare('SELECT * FROM cashiers WHERE phone = ?').get(variant)
+    if (cashier) return { account: cashier, table: 'cashiers' }
+
+    const cutter = db.prepare('SELECT * FROM cutters WHERE phone = ?').get(variant)
+    if (cutter) return { account: cutter, table: 'cutters' }
+  }
+
+  return null
+}
+
 // ── In-memory OTP store: { phone -> { otp, expiresAt, userId, table } } ──────
 const otpStore = new Map()
 
@@ -69,8 +99,8 @@ const userLoginService = {
   },
 
   async login(phone, password) {
-    // 1. Check main users table (Manufacturer / Reseller)
-    const user = UserModel.findByPhone(phone)
+    const found = findByPhoneAcrossTables(phone)
+    const user = found?.table === 'users' ? found.account : null
     if (user) {
       if (user.status === 'Inactive')
         throw { status: 403, message: 'Your account is inactive. Please contact an admin.' }
@@ -81,7 +111,7 @@ const userLoginService = {
     }
 
     // 2. Check cashiers table
-    const cashier = db.prepare('SELECT * FROM cashiers WHERE phone = ?').get(phone)
+    const cashier = found?.table === 'cashiers' ? found.account : null
     if (cashier) {
       if (cashier.status === 'Inactive')
         throw { status: 403, message: 'Your account is inactive. Please contact an admin.' }
@@ -92,7 +122,7 @@ const userLoginService = {
     }
 
     // 3. Check cutters table
-    const cutter = db.prepare('SELECT * FROM cutters WHERE phone = ?').get(phone)
+    const cutter = found?.table === 'cutters' ? found.account : null
     if (cutter) {
       if (cutter.status === 'Inactive')
         throw { status: 403, message: 'Your account is inactive. Please contact an admin.' }
