@@ -65,11 +65,9 @@ const superAdminManageService = {
     const existing = AdminManageModel.findByPhone(phone)
     if (existing) throw { status: 409, message: 'Phone number already registered' }
 
-    const cleanEmail = email && typeof email === 'string' && email.trim() ? email.trim().toLowerCase() : null
-    if (cleanEmail) {
-      const existingEmail = AdminManageModel.findByEmail(cleanEmail)
-      if (existingEmail) throw { status: 409, message: 'Email address already registered' }
-    }
+    const cleanEmail = email.trim().toLowerCase()
+    const existingEmail = AdminManageModel.findByEmail(cleanEmail)
+    if (existingEmail) throw { status: 409, message: 'Email address already registered' }
 
     const hash = await bcrypt.hash(password, 10)
     const id   = uuidv4()
@@ -86,12 +84,10 @@ const superAdminManageService = {
       throw { status: 409, message: 'Phone number already in use' }
     }
 
-    const cleanEmail = email && typeof email === 'string' && email.trim() ? email.trim().toLowerCase() : null
-    if (cleanEmail) {
-      const existingEmail = AdminManageModel.findByEmail(cleanEmail)
-      if (existingEmail && existingEmail.id !== id) {
-        throw { status: 409, message: 'Email address already in use' }
-      }
+    const cleanEmail = email.trim().toLowerCase()
+    const existingEmail = AdminManageModel.findByEmail(cleanEmail)
+    if (existingEmail && existingEmail.id !== id) {
+      throw { status: 409, message: 'Email address already in use' }
     }
 
     AdminManageModel.update(id, { name, phone, email: cleanEmail })
