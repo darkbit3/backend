@@ -8,7 +8,7 @@ const config         = require('../config/config')
 async function seedAdmin() {
   const phone    = config.admin.phone
   const password = config.admin.password
-  const hash     = await bcrypt.hash(password, 10)
+    const hash     = bcrypt.hashSync(password, 10)
 
   const existing = db.prepare('SELECT id FROM admins WHERE phone = ?').get(phone)
 
@@ -37,7 +37,7 @@ async function seedSuperAdmin() {
     return
   }
 
-  const hash     = await bcrypt.hash(password, 10)
+    const hash     = bcrypt.hashSync(password, 10)
 
   const existing = db.prepare('SELECT id FROM super_admins WHERE phone = ? OR LOWER(name) = LOWER(?)').get(phone, name)
 
@@ -58,13 +58,15 @@ async function seedSuperAdmin() {
 // Allow running directly: node src/database/init.js
 if (require.main === module) {
   createTables()
-  seedAdmin()
-    .then(() => seedSuperAdmin())
-    .then(async () => {
-      console.log('[DB] Done.')
-      await db.close()
-    })
-    .catch(console.error)
+  try {
+    seedAdmin()
+    seedSuperAdmin()
+    console.log('[DB] Done.')
+    db.close()
+  } catch (error) {
+    console.error(error)
+    process.exitCode = 1
+  }
 }
 
 module.exports = { seedAdmin, seedSuperAdmin }
