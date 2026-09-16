@@ -35,6 +35,7 @@ router.post('/',
   validate({
     name:     { required: true, minLength: 2 },
     phone:    { required: true, pattern: /^0[97]\d{8}$/, patternMessage: 'Phone must be 09xxxxxxxx or 07xxxxxxxx' },
+    email:    { pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, patternMessage: 'Enter a valid email address' },
     password: { required: true, minLength: 6 },
   }),
   superAdminManageController.create
@@ -44,6 +45,7 @@ router.put('/:id',
   validate({
     name:  { required: true, minLength: 2 },
     phone: { required: true, pattern: /^0[97]\d{8}$/, patternMessage: 'Phone must be 09xxxxxxxx or 07xxxxxxxx' },
+    email: { pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, patternMessage: 'Enter a valid email address' },
   }),
   superAdminManageController.update
 )

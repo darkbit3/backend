@@ -312,6 +312,12 @@ function createTables() {
   console.log('[DB] Tables created or already exist.')
 
   // ── Migrations ────────────────────────────────────────────────────────────
+  // Ensure email column exists on admins table
+  try {
+    db.exec(`ALTER TABLE admins ADD COLUMN email TEXT;`)
+    console.log('[DB] Migration: added email to admins')
+  } catch (_) {}
+
   // Add material_id column to sale_items for reliable stock deduction by ID
   try {
     db.exec(`ALTER TABLE sale_items ADD COLUMN material_id TEXT;`)

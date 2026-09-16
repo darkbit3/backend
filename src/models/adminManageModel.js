@@ -3,7 +3,7 @@ const db = require('../database/db')
 const AdminManageModel = {
   findAll() {
     return db.prepare(`
-      SELECT id, phone, name, status, created_at, updated_at
+      SELECT id, phone, email, name, status, created_at, updated_at
       FROM admins
       ORDER BY created_at DESC
     `).all()
@@ -11,26 +11,31 @@ const AdminManageModel = {
 
   findById(id) {
     return db.prepare(`
-      SELECT id, phone, name, status, created_at, updated_at
+      SELECT id, phone, email, name, status, created_at, updated_at
       FROM admins WHERE id = ?
     `).get(id)
   },
 
   findByPhone(phone) {
-    return db.prepare('SELECT id FROM admins WHERE phone = ?').get(phone)
+    return db.prepare('SELECT id, phone, email FROM admins WHERE phone = ?').get(phone)
   },
 
-  create({ id, name, phone, password }) {
-    return db.prepare(`
-      INSERT INTO admins (id, name, phone, password, status)
-      VALUES (?, ?, ?, ?, 'Active')
-    `).run(id, name, phone, password)
+  findByEmail(email) {
+    if (!email) return null
+    return db.prepare('SELECT id, phone, email FROM admins WHERE LOWER(email) = LOWER(?)').get(email)
   },
 
-  update(id, { name, phone }) {
+  create({ id, name, phone, email, password }) {
     return db.prepare(`
-      UPDATE admins SET name = ?, phone = ?, updated_at = datetime('now') WHERE id = ?
-    `).run(name, phone, id)
+      INSERT INTO admins (id, name, phone, email, password, status)
+      VALUES (?, ?, ?, ?, ?, 'Active')
+    `).run(id, name, phone, email || null, password)
+  },
+
+  update(id, { name, phone, email }) {
+    return db.prepare(`
+      UPDATE admins SET name = ?, phone = ?, email = ?, updated_at = datetime('now') WHERE id = ?
+    `).run(name, phone, email || null, id)
   },
 
   delete(id) {
@@ -108,6 +113,7 @@ const AdminManageModel = {
         a.id,
         a.name,
         a.phone,
+        a.email,
         a.status,
         a.created_at,
         (SELECT COUNT(*) FROM users u WHERE u.admin_id = a.id) AS owner_count,

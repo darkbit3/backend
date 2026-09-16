@@ -188,3 +188,41 @@ test('super admin can view and update the register fee setting', async () => {
   const plans = await plansResponse.json()
   assert.deepEqual(plans.data.map(plan => plan.key), ['oneMonth', 'threeMonths', 'sixMonths'])
 })
+
+test('super admin can create, fetch, and update admin with email', async () => {
+  const createRes = await request(createApp(), '/api/super/admins', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({
+      name: 'Email Test Admin',
+      phone: '0911998877',
+      email: 'testadmin@shmeta.com',
+      password: 'password123',
+    }),
+  })
+  assert.equal(createRes.status, 201)
+  const created = await createRes.json()
+  assert.equal(created.data.name, 'Email Test Admin')
+  assert.equal(created.data.email, 'testadmin@shmeta.com')
+
+  const getRes = await request(createApp(), `/api/super/admins/${created.data.id}`, {
+    method: 'GET',
+    headers: authHeaders(),
+  })
+  assert.equal(getRes.status, 200)
+  const fetched = await getRes.json()
+  assert.equal(fetched.data.email, 'testadmin@shmeta.com')
+
+  const updateRes = await request(createApp(), `/api/super/admins/${created.data.id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify({
+      name: 'Email Test Admin Renamed',
+      phone: '0911998877',
+      email: 'updatedadmin@shmeta.com',
+    }),
+  })
+  assert.equal(updateRes.status, 200)
+  const updated = await updateRes.json()
+  assert.equal(updated.data.email, 'updatedadmin@shmeta.com')
+})
