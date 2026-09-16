@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid')
 const config         = require('../config/config')
 const UserModel      = require('../models/userModel')
 const db             = require('../database/db')
+const superAdminManageService = require('./super_admin_manage_service')
 
 function generateTokens(userId, phone, ownerId = null) {
   const accessToken = jwt.sign(
@@ -27,7 +28,8 @@ function generateOtp() {
 }
 
 const userLoginService = {
-  async register(name, phone, password, role) {
+  async register(name, phone, password, role, planKey = 'oneMonth') {
+    const registrationPlan = superAdminManageService.getRegisterPlan(planKey)
     const existingUser = UserModel.findByPhone(phone)
     const existingCashier = db.prepare('SELECT id FROM cashiers WHERE phone = ?').get(phone)
     const existingCutter = db.prepare('SELECT id FROM cutters WHERE phone = ?').get(phone)
@@ -61,6 +63,8 @@ const userLoginService = {
         status: user.status,
         alertThresholdPercentage: user.alert_threshold_percentage || 20,
       },
+      registrationPlan,
+      registrationFree: registrationPlan.fee === 0,
     }
   },
 

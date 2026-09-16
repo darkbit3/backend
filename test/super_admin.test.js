@@ -21,6 +21,7 @@ const db = require('../src/database/db')
 const { createTables } = require('../src/database/schema')
 const superAuthRoutes = require('../src/routes/super_admin_login_route')
 const superManageRoutes = require('../src/routes/super_admin_manage_route')
+const userAuthRoutes = require('../src/routes/user_login_route')
 const errorHandler = require('../src/middleware/errorHandler')
 
 createTables()
@@ -44,6 +45,7 @@ function createApp() {
   app.use(express.json())
   app.use('/api/super-auth', superAuthRoutes)
   app.use('/api/super/admins', superManageRoutes)
+  app.use('/api/user-auth', userAuthRoutes)
   app.use(errorHandler)
   return app
 }
@@ -123,19 +125,34 @@ test('super admin can view and update the register fee setting', async () => {
   })
   assert.equal(getResponse.status, 200)
   const current = await getResponse.json()
-  assert.equal(typeof current.data.oneMonth, 'number')
-  assert.equal(typeof current.data.twoMonths, 'number')
-  assert.equal(typeof current.data.threeMonths, 'number')
+  assert.equal(typeof current.data.oneMonth.fee, 'number')
+  assert.equal(typeof current.data.twoMonths.fee, 'number')
+  assert.equal(typeof current.data.threeMonths.fee, 'number')
+  assert.equal(typeof current.data.sixMonths.fee, 'number')
+  assert.equal(typeof current.data.oneYear.fee, 'number')
 
   const updateResponse = await request(createApp(), '/api/super/admins/settings/register-fee', {
     method: 'PUT', headers: authHeaders(),
-    body: JSON.stringify({ oneMonth: 1000, twoMonths: 1800, threeMonths: 2400 }),
+    body: JSON.stringify({
+      oneMonth: { fee: 1000, enabled: true },
+      twoMonths: { fee: 1800, enabled: false },
+      threeMonths: { fee: 2400, enabled: true },
+      sixMonths: { fee: 4000, enabled: true },
+      oneYear: { fee: 7000, enabled: false },
+    }),
   })
 
   assert.equal(updateResponse.status, 200)
   const updated = await updateResponse.json()
-  assert.equal(updated.data.oneMonth, 1000)
-  assert.equal(updated.data.twoMonths, 1800)
-  assert.equal(updated.data.threeMonths, 2400)
+  assert.equal(updated.data.oneMonth.fee, 1000)
+  assert.equal(updated.data.twoMonths.enabled, false)
+  assert.equal(updated.data.threeMonths.fee, 2400)
+  assert.equal(updated.data.sixMonths.fee, 4000)
+  assert.equal(updated.data.oneYear.enabled, false)
   assert.equal(updated.message, 'Register fee updated successfully')
+
+  const plansResponse = await request(createApp(), '/api/user-auth/register-plans')
+  assert.equal(plansResponse.status, 200)
+  const plans = await plansResponse.json()
+  assert.deepEqual(plans.data.map(plan => plan.key), ['oneMonth', 'threeMonths', 'sixMonths'])
 })

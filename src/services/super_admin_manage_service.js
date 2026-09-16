@@ -4,9 +4,11 @@ const AdminManageModel = require('../models/adminManageModel')
 const db               = require('../database/db')
 
 const DEFAULT_REGISTER_FEES = {
-  oneMonth: 0,
-  twoMonths: 0,
-  threeMonths: 0,
+  oneMonth: { months: 1, label: 'Free for 1 month', fee: 0, enabled: true },
+  twoMonths: { months: 2, label: 'Free for 2 months', fee: 0, enabled: true },
+  threeMonths: { months: 3, label: 'Free for 3 months', fee: 0, enabled: true },
+  sixMonths: { months: 6, label: 'Free for 6 months', fee: 0, enabled: true },
+  oneYear: { months: 12, label: 'Free for 1 year', fee: 0, enabled: true },
 }
 
 function getSettingValue(key, fallback = null) {
@@ -28,6 +30,20 @@ function upsertSetting(key, value, description = '') {
   db.prepare(
     'INSERT INTO system_settings (id, setting_key, setting_value, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
   ).run(uuidv4(), key, String(value), description || null, now, now)
+}
+
+function normalizeRegisterPlans(rawPlans) {
+  const plans = {}
+  for (const [key, defaults] of Object.entries(DEFAULT_REGISTER_FEES)) {
+    const source = rawPlans?.[key] || {}
+    const fee = Number(source.fee ?? source)
+    plans[key] = {
+      ...defaults,
+      fee: Number.isFinite(fee) && fee >= 0 ? Number(fee.toFixed(2)) : defaults.fee,
+      enabled: source.enabled === undefined ? defaults.enabled : Boolean(source.enabled),
+    }
+  }
+  return plans
 }
 
 const superAdminManageService = {
@@ -113,31 +129,44 @@ const superAdminManageService = {
     const raw = getSettingValue('register_fee_plans')
     if (raw) {
       try {
-        const parsed = JSON.parse(raw)
-        return {
-          oneMonth: Number.isFinite(Number(parsed.oneMonth)) ? Number(parsed.oneMonth) : 0,
-          twoMonths: Number.isFinite(Number(parsed.twoMonths)) ? Number(parsed.twoMonths) : 0,
-          threeMonths: Number.isFinite(Number(parsed.threeMonths)) ? Number(parsed.threeMonths) : 0,
-        }
+        return normalizeRegisterPlans(JSON.parse(raw))
       } catch (_) {}
     }
 
     const legacyFee = Number(getSettingValue('register_fee', '0'))
-    return { ...DEFAULT_REGISTER_FEES, oneMonth: Number.isFinite(legacyFee) ? legacyFee : 0 }
+    const plans = normalizeRegisterPlans()
+    plans.oneMonth.fee = Number.isFinite(legacyFee) ? legacyFee : 0
+    return plans
   },
 
   setRegisterFee(plans) {
     const normalized = {}
-    for (const key of Object.keys(DEFAULT_REGISTER_FEES)) {
-      const numericFee = Number(plans?.[key])
+    for (const [key, defaults] of Object.entries(DEFAULT_REGISTER_FEES)) {
+      const numericFee = Number(plans?.[key]?.fee)
       if (!Number.isFinite(numericFee) || numericFee < 0) {
         throw { status: 400, message: 'Each register fee must be a valid non-negative number' }
       }
-      normalized[key] = Number(numericFee.toFixed(2))
+      normalized[key] = {
+        ...defaults,
+        fee: Number(numericFee.toFixed(2)),
+        enabled: plans[key].enabled === true,
+      }
     }
 
-    upsertSetting('register_fee_plans', JSON.stringify(normalized), 'Registration fees for 1, 2, and 3 month plans')
+    upsertSetting('register_fee_plans', JSON.stringify(normalized), 'Registration fees and availability for all registration plans')
     return this.getRegisterFee()
+  },
+
+  getActiveRegisterPlans() {
+    return Object.entries(this.getRegisterFee())
+      .filter(([, plan]) => plan.enabled)
+      .map(([key, plan]) => ({ key, ...plan }))
+  },
+
+  getRegisterPlan(key) {
+    const plan = this.getRegisterFee()[key]
+    if (!plan || !plan.enabled) throw { status: 400, message: 'Selected registration plan is unavailable' }
+    return { key, ...plan }
   },
 }
 

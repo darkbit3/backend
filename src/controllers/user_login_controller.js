@@ -1,10 +1,19 @@
 const userLoginService = require('../services/user_login_service')
+const superAdminManageService = require('../services/super_admin_manage_service')
 
 const userLoginController = {
+  getRegisterPlans(req, res, next) {
+    try {
+      res.json({ success: true, data: superAdminManageService.getActiveRegisterPlans() })
+    } catch (err) {
+      next(err)
+    }
+  },
+
   async register(req, res, next) {
     try {
-      const { name, phone, password, role } = req.body
-      const data = await userLoginService.register(name, phone, password, role)
+      const { name, phone, password, role, plan } = req.body
+      const data = await userLoginService.register(name, phone, password, role, plan)
       res.status(201).json({ success: true, message: 'Registration successful', data })
     } catch (err) {
       next(err)
