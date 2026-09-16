@@ -19,7 +19,7 @@ function createTransporter() {
 
 async function sendSuperAdminOtp(email, otp) {
   const transporter = createTransporter()
-  if (!transporter) {
+  if (!transporter || process.env.NODE_ENV === 'test') {
     if (process.env.NODE_ENV === 'production') {
       throw { status: 503, message: 'Email service is not configured. Please contact the system administrator.' }
     }
