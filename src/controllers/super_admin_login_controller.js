@@ -54,9 +54,9 @@ const superAdminLoginController = {
     }
   },
 
-  checkEmail(req, res, next) {
+  async checkEmail(req, res, next) {
     try {
-      const data = superAdminLoginService.checkEmail(req.body.email)
+      const data = await superAdminLoginService.checkEmail(req.body.email)
       res.json({ success: true, data })
     } catch (err) {
       next(err)

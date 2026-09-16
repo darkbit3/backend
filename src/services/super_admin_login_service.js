@@ -4,6 +4,7 @@ const { v4: uuidv4 }     = require('uuid')
 const config             = require('../config/config')
 const SuperAdminModel    = require('../models/superAdminModel')
 const db                 = require('../database/db')
+const { sendSuperAdminOtp } = require('./email_service')
 
 const otpStore = new Map()
 
@@ -94,15 +95,20 @@ const superAdminLoginService = {
     SuperAdminModel.updatePassword(admin.id, hash)
   },
 
-  checkEmail(email) {
+  async checkEmail(email) {
     const normalizedEmail = String(email || '').trim().toLowerCase()
     const admin = SuperAdminModel.findByEmail(normalizedEmail)
     if (!admin) throw { status: 404, message: 'No super admin found with this email address.' }
 
     const otp = generateOtp()
     otpStore.set(normalizedEmail, { otp, expiresAt: Date.now() + 5 * 60 * 1000, adminId: admin.id })
-    console.log(`[OTP] Super admin email ${normalizedEmail} -> OTP ${otp}`)
-    return { email: normalizedEmail, otp }
+    try {
+      const delivery = await sendSuperAdminOtp(normalizedEmail, otp)
+      return { email: normalizedEmail, otp: delivery.delivered ? undefined : otp, delivered: delivery.delivered }
+    } catch (err) {
+      otpStore.delete(normalizedEmail)
+      throw err
+    }
   },
 
   async verifyEmailOtp(email, otp, newPassword) {
