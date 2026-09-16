@@ -4,9 +4,10 @@ const { v4: uuidv4 } = require('uuid')
 const { createTables } = require('./schema')
 const db             = require('./db')
 const config         = require('../config/config')
+const { normalizePhone } = require('../utils/phone')
 
 function seedAdmin() {
-  const phone    = config.admin.phone
+  const phone    = normalizePhone(config.admin.phone) || config.admin.phone
   const password = config.admin.password
     const hash     = bcrypt.hashSync(password, 10)
 
@@ -27,7 +28,8 @@ function seedAdmin() {
 }
 
 function seedSuperAdmin() {
-  const phone    = process.env.SUPER_ADMIN_PHONE
+  const configuredPhone = process.env.SUPER_ADMIN_PHONE
+  const phone    = normalizePhone(configuredPhone) || configuredPhone
   const email    = process.env.SUPER_ADMIN_EMAIL
   const password = process.env.SUPER_ADMIN_PASSWORD
   const name     = process.env.SUPER_ADMIN_NAME

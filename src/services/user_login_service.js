@@ -5,6 +5,7 @@ const config         = require('../config/config')
 const UserModel      = require('../models/userModel')
 const db             = require('../database/db')
 const superAdminManageService = require('./super_admin_manage_service')
+const { normalizePhone } = require('../utils/phone')
 
 function generateTokens(userId, phone, ownerId = null) {
   const accessToken = jwt.sign(
@@ -59,10 +60,12 @@ function generateOtp() {
 
 const userLoginService = {
   async register(name, phone, password, role, planKey = 'oneMonth') {
+    const normalizedPhone = normalizePhone(phone)
+    if (!normalizedPhone) throw { status: 400, message: 'Phone must be 09/07, 251, or +251 followed by 9 digits' }
     const registrationPlan = superAdminManageService.getRegisterPlan(planKey)
-    const existingUser = UserModel.findByPhone(phone)
-    const existingCashier = db.prepare('SELECT id FROM cashiers WHERE phone = ?').get(phone)
-    const existingCutter = db.prepare('SELECT id FROM cutters WHERE phone = ?').get(phone)
+    const existingUser = UserModel.findByPhone(normalizedPhone)
+    const existingCashier = db.prepare('SELECT id FROM cashiers WHERE phone = ?').get(normalizedPhone)
+    const existingCutter = db.prepare('SELECT id FROM cutters WHERE phone = ?').get(normalizedPhone)
     if (existingUser || existingCashier || existingCutter) {
       throw { status: 409, message: 'Phone number already registered' }
     }
@@ -72,7 +75,7 @@ const userLoginService = {
     UserModel.create({
       id,
       name,
-      phone,
+      phone: normalizedPhone,
       password: hash,
       plainPassword: password,
       role,
@@ -81,7 +84,7 @@ const userLoginService = {
     })
 
     const user = UserModel.findById(id)
-    const { accessToken, refreshToken } = generateTokens(id, phone, id)
+    const { accessToken, refreshToken } = generateTokens(id, normalizedPhone, id)
     return {
       accessToken,
       refreshToken,
@@ -137,18 +140,20 @@ const userLoginService = {
 
   // ── Forgot password: Step 1 — verify phone exists, issue OTP ─────────────
   checkPhone(phone) {
+    const normalizedPhone = normalizePhone(phone)
+    if (!normalizedPhone) throw { status: 400, message: 'Phone must be 09/07, 251, or +251 followed by 9 digits' }
     let found = null
     let table = null
 
-    const user = UserModel.findByPhone(phone)
+    const user = UserModel.findByPhone(normalizedPhone)
     if (user) { found = user; table = 'users' }
 
     if (!found) {
-      const cashier = db.prepare('SELECT id, name, phone FROM cashiers WHERE phone = ?').get(phone)
+      const cashier = db.prepare('SELECT id, name, phone FROM cashiers WHERE phone = ?').get(normalizedPhone)
       if (cashier) { found = cashier; table = 'cashiers' }
     }
     if (!found) {
-      const cutter = db.prepare('SELECT id, name, phone FROM cutters WHERE phone = ?').get(phone)
+      const cutter = db.prepare('SELECT id, name, phone FROM cutters WHERE phone = ?').get(normalizedPhone)
       if (cutter) { found = cutter; table = 'cutters' }
     }
 
@@ -156,16 +161,17 @@ const userLoginService = {
 
     const otp       = generateOtp()
     const expiresAt = Date.now() + 5 * 60 * 1000 // 5 minutes
-    otpStore.set(phone, { otp, expiresAt, userId: found.id, table })
+    otpStore.set(normalizedPhone, { otp, expiresAt, userId: found.id, table })
 
     // In production replace this with real SMS. For now we return the OTP.
-    console.log(`[OTP] Phone ${phone} → OTP ${otp}`)
+    console.log(`[OTP] Phone ${normalizedPhone} → OTP ${otp}`)
     return { name: found.name, otp }
   },
 
   // ── Forgot password: Step 2 — verify OTP, reset password ─────────────────
   async verifyOtp(phone, otp, newPassword) {
-    const entry = otpStore.get(phone)
+    const normalizedPhone = normalizePhone(phone)
+    const entry = otpStore.get(normalizedPhone)
     if (!entry)                       throw { status: 400, message: 'No OTP request found. Please request again.' }
     if (Date.now() > entry.expiresAt) { otpStore.delete(phone); throw { status: 400, message: 'OTP has expired. Please request again.' } }
     if (entry.otp !== otp)            throw { status: 400, message: 'Invalid OTP. Please try again.' }

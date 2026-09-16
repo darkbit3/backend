@@ -12,7 +12,7 @@ router.post('/register',
     name:     { required: true, minLength: 2, maxLength: 100 },
     role:     { required: true, enum: ['Manufacturer', 'Reseller'] },
     plan:     { enum: ['oneMonth', 'twoMonths', 'threeMonths', 'sixMonths', 'oneYear'] },
-    phone:    { required: true, pattern: /^251[97]\d{8}$/, patternMessage: 'Phone must be 251 followed by 9 digits starting with 9 or 7' },
+    phone:    { required: true, pattern: /^(?:0[97]\d{8}|251[97]\d{8}|\+251[97]\d{8})$/, patternMessage: 'Phone must be 09xxxxxxxx, 251xxxxxxxxx, or +251xxxxxxxxx' },
     password: { required: true, minLength: 6 },
   }),
   userLoginController.register
@@ -21,7 +21,7 @@ router.post('/register',
 // POST /api/user-auth/login
 router.post('/login',
   validate({
-    phone:    { required: true, pattern: /^251[97]\d{8}$/, patternMessage: 'Phone must be 251 followed by 9 digits starting with 9 or 7' },
+    phone:    { required: true, pattern: /^(?:0[97]\d{8}|251[97]\d{8}|\+251[97]\d{8})$/, patternMessage: 'Phone must be 09xxxxxxxx, 251xxxxxxxxx, or +251xxxxxxxxx' },
     password: { required: true, minLength: 6 },
   }),
   userLoginController.login

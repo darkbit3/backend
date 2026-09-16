@@ -2,6 +2,7 @@ const bcrypt       = require('bcryptjs')
 const { v4: uuid } = require('uuid')
 const CutterModel  = require('../models/cutterModel')
 const db           = require('../database/db')
+const { normalizePhone } = require('../utils/phone')
 
 function isPhoneInUse(phone, excludeId = null) {
   const user    = db.prepare('SELECT id FROM users WHERE phone = ?').get(phone)
@@ -21,12 +22,14 @@ const cutterService = {
   },
 
   async create({ ownerId, name, phone, password }) {
-    if (isPhoneInUse(phone)) {
+    const normalizedPhone = normalizePhone(phone)
+    if (!normalizedPhone) throw { status: 400, message: 'Phone must be 09/07, 251, or +251 followed by 9 digits' }
+    if (isPhoneInUse(normalizedPhone)) {
       throw { status: 409, message: 'This phone number is already registered' }
     }
     const hash = await bcrypt.hash(password, 10)
     const id   = uuid()
-    CutterModel.create({ id, ownerId, name, phone, password: hash })
+    CutterModel.create({ id, ownerId, name, phone: normalizedPhone, password: hash })
     return CutterModel.findById(id)
   },
 
@@ -44,10 +47,12 @@ const cutterService = {
     if (!cutter || cutter.owner_id !== ownerId) {
       throw { status: 404, message: 'Cutter not found' }
     }
-    if (phone !== cutter.phone && isPhoneInUse(phone, id)) {
+    const normalizedPhone = normalizePhone(phone)
+    if (!normalizedPhone) throw { status: 400, message: 'Phone must be 09/07, 251, or +251 followed by 9 digits' }
+    if (normalizedPhone !== cutter.phone && isPhoneInUse(normalizedPhone, id)) {
       throw { status: 409, message: 'Phone number already in use' }
     }
-    CutterModel.update(id, { name, phone })
+    CutterModel.update(id, { name, phone: normalizedPhone })
     return CutterModel.findById(id)
   },
 

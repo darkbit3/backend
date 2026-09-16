@@ -2,6 +2,7 @@ const bcrypt         = require('bcryptjs')
 const { v4: uuidv4 } = require('uuid')
 const UserModel      = require('../models/userModel')
 const db             = require('../database/db')
+const { normalizePhone } = require('../utils/phone')
 
 function isPhoneInUse(phone, excludeId = null) {
   const user = db.prepare('SELECT id FROM users WHERE phone = ?').get(phone)
@@ -39,13 +40,15 @@ const adminManageService = {
   },
 
   async create({ name, phone, password, role, accountType, freeUntil, adminId }) {
-    if (isPhoneInUse(phone)) {
+    const normalizedPhone = normalizePhone(phone)
+    if (!normalizedPhone) throw { status: 400, message: 'Phone must be 09/07, 251, or +251 followed by 9 digits' }
+    if (isPhoneInUse(normalizedPhone)) {
       throw { status: 409, message: 'Phone number already registered across accounts' }
     }
 
     const hash = await bcrypt.hash(password, 10)
     const id   = uuidv4()
-    UserModel.create({ id, name, phone, password: hash, plainPassword: password, role, accountType, freeUntil, adminId })
+    UserModel.create({ id, name, phone: normalizedPhone, password: hash, plainPassword: password, role, accountType, freeUntil, adminId })
     return UserModel.findById(id)
   },
 
@@ -53,11 +56,13 @@ const adminManageService = {
     const user = UserModel.findById(id)
     if (!user) throw { status: 404, message: 'User not found' }
 
-    if (isPhoneInUse(phone, id)) {
+    const normalizedPhone = normalizePhone(phone)
+    if (!normalizedPhone) throw { status: 400, message: 'Phone must be 09/07, 251, or +251 followed by 9 digits' }
+    if (isPhoneInUse(normalizedPhone, id)) {
       throw { status: 409, message: 'Phone number already in use' }
     }
 
-    UserModel.update(id, { name, phone, role, accountType, freeUntil })
+    UserModel.update(id, { name, phone: normalizedPhone, role, accountType, freeUntil })
     return UserModel.findById(id)
   },
 

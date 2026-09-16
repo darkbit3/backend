@@ -21,7 +21,7 @@ router.get('/:id/password', adminManageController.getPassword)
 router.post('/',
   validate({
     name:        { required: true, minLength: 2 },
-    phone:       { required: true, pattern: /^0[97]\d{8}$/, patternMessage: 'Phone must be 09xxxxxxxx or 07xxxxxxxx' },
+    phone:       { required: true, pattern: /^(?:0[97]\d{8}|251[97]\d{8}|\+251[97]\d{8})$/, patternMessage: 'Phone must be 09xxxxxxxx, 251xxxxxxxxx, or +251xxxxxxxxx' },
     password:    { required: true, minLength: 6 },
     role:        { required: true, enum: ['Manufacturer', 'Reseller'] },
     accountType: { required: false, enum: ['Free', 'Paid'] },
@@ -32,7 +32,7 @@ router.post('/',
 router.put('/:id',
   validate({
     name:        { required: true, minLength: 2 },
-    phone:       { required: true, pattern: /^0[97]\d{8}$/, patternMessage: 'Phone must be 09xxxxxxxx or 07xxxxxxxx' },
+    phone:       { required: true, pattern: /^(?:0[97]\d{8}|251[97]\d{8}|\+251[97]\d{8})$/, patternMessage: 'Phone must be 09xxxxxxxx, 251xxxxxxxxx, or +251xxxxxxxxx' },
     role:        { required: true, enum: ['Manufacturer', 'Reseller'] },
     accountType: { required: false, enum: ['Free', 'Paid'] },
   }),

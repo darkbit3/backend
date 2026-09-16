@@ -2,6 +2,7 @@ const bcrypt         = require('bcryptjs')
 const { v4: uuidv4 } = require('uuid')
 const CashierModel   = require('../models/cashierModel')
 const db             = require('../database/db')
+const { normalizePhone } = require('../utils/phone')
 
 function isPhoneInUse(phone) {
   const user = db.prepare('SELECT id FROM users WHERE phone = ?').get(phone)
@@ -21,13 +22,15 @@ const cashierService = {
 
   /** Create a new cashier under the given owner. */
   async create({ ownerId, name, phone, password }) {
-    if (isPhoneInUse(phone)) {
+    const normalizedPhone = normalizePhone(phone)
+    if (!normalizedPhone) throw { status: 400, message: 'Phone must be 09/07, 251, or +251 followed by 9 digits' }
+    if (isPhoneInUse(normalizedPhone)) {
       throw { status: 409, message: 'This phone number is already registered' }
     }
 
     const hash = await bcrypt.hash(password, 10)
     const id   = uuidv4()
-    CashierModel.create({ id, ownerId, name, phone, password: hash })
+    CashierModel.create({ id, ownerId, name, phone: normalizedPhone, password: hash })
     return CashierModel.findById(id)
   },
 
@@ -46,13 +49,15 @@ const cashierService = {
       throw { status: 404, message: 'Cashier not found' }
     }
     // Check phone uniqueness across all tables (excluding self)
-    if (phone !== cashier.phone) {
-      const inUse = db.prepare('SELECT id FROM users WHERE phone = ?').get(phone) ||
-                    db.prepare('SELECT id FROM cashiers WHERE phone = ? AND id != ?').get(phone, id) ||
-                    db.prepare('SELECT id FROM cutters WHERE phone = ?').get(phone)
+    const normalizedPhone = normalizePhone(phone)
+    if (!normalizedPhone) throw { status: 400, message: 'Phone must be 09/07, 251, or +251 followed by 9 digits' }
+    if (normalizedPhone !== cashier.phone) {
+      const inUse = db.prepare('SELECT id FROM users WHERE phone = ?').get(normalizedPhone) ||
+                    db.prepare('SELECT id FROM cashiers WHERE phone = ? AND id != ?').get(normalizedPhone, id) ||
+                    db.prepare('SELECT id FROM cutters WHERE phone = ?').get(normalizedPhone)
       if (inUse) throw { status: 409, message: 'Phone number already in use' }
     }
-    CashierModel.update(id, { name, phone })
+    CashierModel.update(id, { name, phone: normalizedPhone })
     return CashierModel.findById(id)
   },
 

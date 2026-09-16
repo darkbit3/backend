@@ -2,6 +2,7 @@ const bcrypt           = require('bcryptjs')
 const { v4: uuidv4 }   = require('uuid')
 const AdminManageModel = require('../models/adminManageModel')
 const db               = require('../database/db')
+const { normalizePhone } = require('../utils/phone')
 
 const DEFAULT_REGISTER_FEES = {
   oneMonth: { months: 1, label: 'Free for 1 month', fee: 0, enabled: true },
@@ -62,7 +63,9 @@ const superAdminManageService = {
   },
 
   async create({ name, phone, email, password }) {
-    const existing = AdminManageModel.findByPhone(phone)
+    const normalizedPhone = normalizePhone(phone)
+    if (!normalizedPhone) throw { status: 400, message: 'Phone must be 09/07, 251, or +251 followed by 9 digits' }
+    const existing = AdminManageModel.findByPhone(normalizedPhone)
     if (existing) throw { status: 409, message: 'Phone number already registered' }
 
     const cleanEmail = email.trim().toLowerCase()
@@ -71,7 +74,7 @@ const superAdminManageService = {
 
     const hash = await bcrypt.hash(password, 10)
     const id   = uuidv4()
-    AdminManageModel.create({ id, name, phone, email: cleanEmail, password: hash })
+    AdminManageModel.create({ id, name, phone: normalizedPhone, email: cleanEmail, password: hash })
     return AdminManageModel.findById(id)
   },
 
@@ -79,7 +82,9 @@ const superAdminManageService = {
     const admin = AdminManageModel.findById(id)
     if (!admin) throw { status: 404, message: 'Admin not found' }
 
-    const existing = AdminManageModel.findByPhone(phone)
+    const normalizedPhone = normalizePhone(phone)
+    if (!normalizedPhone) throw { status: 400, message: 'Phone must be 09/07, 251, or +251 followed by 9 digits' }
+    const existing = AdminManageModel.findByPhone(normalizedPhone)
     if (existing && existing.id !== id) {
       throw { status: 409, message: 'Phone number already in use' }
     }
@@ -90,7 +95,7 @@ const superAdminManageService = {
       throw { status: 409, message: 'Email address already in use' }
     }
 
-    AdminManageModel.update(id, { name, phone, email: cleanEmail })
+    AdminManageModel.update(id, { name, phone: normalizedPhone, email: cleanEmail })
     return AdminManageModel.findById(id)
   },
 

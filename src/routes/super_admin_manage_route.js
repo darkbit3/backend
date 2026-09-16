@@ -34,7 +34,7 @@ router.get('/:id',          superAdminManageController.getOne)
 router.post('/',
   validate({
     name:     { required: true, minLength: 2 },
-    phone:    { required: true, pattern: /^0[97]\d{8}$/, patternMessage: 'Phone must be 09xxxxxxxx or 07xxxxxxxx' },
+    phone:    { required: true, pattern: /^(?:0[97]\d{8}|251[97]\d{8}|\+251[97]\d{8})$/, patternMessage: 'Phone must be 09xxxxxxxx, 251xxxxxxxxx, or +251xxxxxxxxx' },
     email:    { required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, patternMessage: 'Enter a valid email address' },
     password: { required: true, minLength: 6 },
   }),
@@ -44,7 +44,7 @@ router.post('/',
 router.put('/:id',
   validate({
     name:  { required: true, minLength: 2 },
-    phone: { required: true, pattern: /^0[97]\d{8}$/, patternMessage: 'Phone must be 09xxxxxxxx or 07xxxxxxxx' },
+    phone: { required: true, pattern: /^(?:0[97]\d{8}|251[97]\d{8}|\+251[97]\d{8})$/, patternMessage: 'Phone must be 09xxxxxxxx, 251xxxxxxxxx, or +251xxxxxxxxx' },
     email: { required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, patternMessage: 'Enter a valid email address' },
   }),
   superAdminManageController.update

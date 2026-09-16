@@ -4,6 +4,7 @@ const { v4: uuidv4 }     = require('uuid')
 const config             = require('../config/config')
 const AdminModel         = require('../models/adminModel')
 const TokenModel         = require('../models/tokenModel')
+const { normalizePhone }  = require('../utils/phone')
 
 function generateTokens(adminId, phone) {
   const payload = { id: adminId, phone, type: 'admin' }
@@ -22,7 +23,8 @@ function generateTokens(adminId, phone) {
 
 const adminLoginService = {
   async login(phone, password) {
-    const admin = AdminModel.findByPhone(phone)
+    const normalizedPhone = normalizePhone(phone)
+    const admin = normalizedPhone ? AdminModel.findByPhone(normalizedPhone) : null
     if (!admin) throw { status: 401, message: 'Invalid phone or password' }
 
     if (admin.status === 'Inactive') {
@@ -77,7 +79,8 @@ const adminLoginService = {
   },
 
   async changePassword(adminPhone, currentPassword, newPassword) {
-    const admin = AdminModel.findByPhone(adminPhone)
+    const normalizedPhone = normalizePhone(adminPhone)
+    const admin = normalizedPhone ? AdminModel.findByPhone(normalizedPhone) : null
     const isMatch = await bcrypt.compare(currentPassword, admin.password)
     if (!isMatch) throw { status: 400, message: 'Current password is incorrect' }
 

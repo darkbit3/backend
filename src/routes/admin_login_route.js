@@ -7,7 +7,7 @@ const { validate }          = require('../middleware/validate')
 // POST /api/auth/login
 router.post('/login',
   validate({
-    phone:    { required: true, pattern: /^0[97]\d{8}$/, patternMessage: 'Phone must be 09xxxxxxxx or 07xxxxxxxx' },
+    phone:    { required: true, pattern: /^(?:0[97]\d{8}|251[97]\d{8}|\+251[97]\d{8})$/, patternMessage: 'Phone must be 09xxxxxxxx, 251xxxxxxxxx, or +251xxxxxxxxx' },
     password: { required: true, minLength: 6 },
   }),
   adminLoginController.login

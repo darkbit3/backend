@@ -17,8 +17,8 @@ router.post(
     name:     { required: true, minLength: 2 },
     phone:    {
       required:       true,
-      pattern:        /^0[97]\d{8}$/,
-      patternMessage: 'Phone must be 09xxxxxxxx or 07xxxxxxxx',
+      pattern:        /^(?:0[97]\d{8}|251[97]\d{8}|\+251[97]\d{8})$/,
+      patternMessage: 'Phone must be 09xxxxxxxx, 251xxxxxxxxx, or +251xxxxxxxxx',
     },
     password: { required: true, minLength: 6 },
   }),
@@ -39,7 +39,7 @@ router.put(
   '/:id',
   validate({
     name:  { required: true, minLength: 2 },
-    phone: { required: true, pattern: /^0[97]\d{8}$/, patternMessage: 'Phone must be 09xxxxxxxx or 07xxxxxxxx' },
+    phone: { required: true, pattern: /^(?:0[97]\d{8}|251[97]\d{8}|\+251[97]\d{8})$/, patternMessage: 'Phone must be 09xxxxxxxx, 251xxxxxxxxx, or +251xxxxxxxxx' },
   }),
   cashierController.update
 )
