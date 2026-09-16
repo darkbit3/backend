@@ -225,7 +225,7 @@ function createTables() {
       name             TEXT NOT NULL,
       quantity         REAL NOT NULL DEFAULT 0,
       initial_quantity REAL NOT NULL DEFAULT 0,
-      unit             TEXT NOT NULL CHECK(unit IN ('Meter', 'Piece')),
+      unit             TEXT NOT NULL CHECK(unit IN ('Meter', 'Piece', 'Kilogram')),
       unit_price       REAL NOT NULL DEFAULT 0,
       created_at       TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

@@ -40,6 +40,7 @@ See `.env.example` for all required variables.
 3. Set `DATABASE_URL=<your PostgreSQL URL>`.
 4. Remove `USE_SQLITE=true` or set `USE_SQLITE=false`.
 5. Run `npm run db:init` to create the PostgreSQL schema and seed configured accounts.
-6. Start the backend and verify `/health` plus the login and registration flows.
+6. Run `npm run db:migrate:postgres` to copy existing SQLite application data into PostgreSQL.
+7. Start the backend and verify `/health` plus the login and registration flows.
 
 The application now fails at startup when PostgreSQL is enabled but the URL is missing or unreachable; it does not silently fall back to SQLite.

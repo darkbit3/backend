@@ -40,12 +40,14 @@ test('Render defaults to SQLite unless a real Postgres URL is configured', () =>
   const prevDbUrl = process.env.DB_URL
   const prevPostgresUrl = process.env.POSTGRES_URL
   const prevUsePostgres = process.env.USE_POSTGRES
+  const prevUseSqlite = process.env.USE_SQLITE
 
   process.env.RENDER = '1'
-  delete process.env.DATABASE_URL
-  delete process.env.DB_URL
-  delete process.env.POSTGRES_URL
-  delete process.env.USE_POSTGRES
+  process.env.DATABASE_URL = ''
+  process.env.DB_URL = ''
+  process.env.POSTGRES_URL = ''
+  process.env.USE_POSTGRES = 'false'
+  process.env.USE_SQLITE = 'true'
 
   try {
     const configPath = require.resolve('../src/config/config')
@@ -67,5 +69,8 @@ test('Render defaults to SQLite unless a real Postgres URL is configured', () =>
 
     if (prevUsePostgres) process.env.USE_POSTGRES = prevUsePostgres
     else delete process.env.USE_POSTGRES
+
+    if (prevUseSqlite) process.env.USE_SQLITE = prevUseSqlite
+    else delete process.env.USE_SQLITE
   }
 })
