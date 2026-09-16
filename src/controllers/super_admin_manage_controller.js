@@ -1,4 +1,5 @@
 const superAdminManageService = require('../services/super_admin_manage_service')
+const paymentInfoService      = require('../services/payment_info_service')
 
 const superAdminManageController = {
   // GET /api/super/admins/stats
@@ -133,6 +134,66 @@ const superAdminManageController = {
   getActiveRegisterPlans(req, res, next) {
     try {
       res.json({ success: true, data: superAdminManageService.getActiveRegisterPlans() })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  // GET /api/super/admins/settings/payment-info
+  getPaymentInfo(req, res, next) {
+    try {
+      res.json({ success: true, data: paymentInfoService.getPaymentInfo() })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  // PUT /api/super/admins/settings/payment-info
+  updatePaymentInfo(req, res, next) {
+    try {
+      const data = paymentInfoService.updatePaymentInfo(req.body)
+      res.json({ success: true, message: 'Payment info updated', data })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  // GET /api/super/admins/registration-requests
+  getRegistrationRequests(req, res, next) {
+    try {
+      const { status } = req.query
+      const data = paymentInfoService.getRegistrationRequests(status)
+      res.json({ success: true, data })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  // GET /api/super/admins/registration-requests/stats
+  getRegistrationStats(req, res, next) {
+    try {
+      const data = paymentInfoService.getStats()
+      res.json({ success: true, data })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  // POST /api/super/admins/registration-requests/:id/approve
+  approveRegistration(req, res, next) {
+    try {
+      const data = paymentInfoService.approveRegistration(req.params.id)
+      res.json({ success: true, message: 'Registration approved', data })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  // POST /api/super/admins/registration-requests/:id/reject
+  rejectRegistration(req, res, next) {
+    try {
+      const data = paymentInfoService.rejectRegistration(req.params.id, req.body.reason)
+      res.json({ success: true, message: 'Registration rejected', data })
     } catch (err) {
       next(err)
     }
