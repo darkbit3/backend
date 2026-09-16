@@ -109,7 +109,7 @@ const paymentInfoService = {
     let sql = 'SELECT * FROM registration_requests'
     const params = []
     if (status && status !== 'all') {
-      sql += ' WHERE status = ?'
+      sql += ' WHERE LOWER(status) = LOWER(?)'
       params.push(status)
     }
     sql += ' ORDER BY created_at DESC'
