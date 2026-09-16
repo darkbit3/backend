@@ -47,6 +47,11 @@ const SuperAdminModel = {
     return db.prepare('SELECT * FROM super_admins WHERE LOWER(email) = LOWER(?)').get(email)
   },
 
+  findByName(name) {
+    if (!name) return null
+    return db.prepare('SELECT * FROM super_admins WHERE LOWER(name) = LOWER(?)').get(name)
+  },
+
   findById(id) {
     return db.prepare('SELECT id, phone, email, name, created_at FROM super_admins WHERE id = ?').get(id)
   },

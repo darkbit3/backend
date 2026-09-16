@@ -25,11 +25,19 @@ function generateTokens(adminId, phone) {
 }
 
 const superAdminLoginService = {
-  async login(phone, password) {
-    const isPhone = !/[a-zA-Z]/.test(phone) && /^\d+$/.test(String(phone).replace(/[\s\-().+]/g, ''))
+  async login(identifier, password) {
+    const str = String(identifier || '').trim()
+    const isPhone = !/[a-zA-Z]/.test(str) && /^\d+$/.test(str.replace(/[\s\-().+]/g, ''))
     const authErrorMessage = isPhone ? 'Invalid phone number or password' : 'Invalid username or password'
 
-    const admin = SuperAdminModel.findByPhone(phone)
+    // Try phone/name lookup (model handles both phone variants and exact name match)
+    let admin = SuperAdminModel.findByPhone(str)
+
+    // Fallback: case-insensitive name search so e.g. "yonas" matches "Yonas"
+    if (!admin && !isPhone) {
+      admin = SuperAdminModel.findByName(str)
+    }
+
     if (!admin) throw { status: 401, message: authErrorMessage }
 
     const isMatch = await bcrypt.compare(password, admin.password)
