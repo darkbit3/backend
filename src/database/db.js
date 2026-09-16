@@ -4,7 +4,7 @@ function createPostgresDb() {
   const { Pool } = require('pg')
   const deasync = require('deasync')
 
-  const connectionString = config.db.url
+  const connectionString = config.db.url.replace(/([?&])sslmode=require\b/i, '$1sslmode=verify-full')
   const pool = new Pool({
     connectionString,
     ssl: connectionString.includes('neon.tech') || connectionString.includes('sslmode=require')
@@ -66,7 +66,6 @@ function createPostgresDb() {
 
   function runQuery(sql, params = []) {
     const text = normalizeSql(sql)
-    if (process.env.DEBUG_DB_STARTUP === 'true') console.log(`[DB] Query: ${text.slice(0, 120).replace(/\s+/g, ' ')}`)
     const done = { value: false }
     let result
     let err
