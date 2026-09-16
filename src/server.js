@@ -129,6 +129,10 @@ app.use(errorHandler)
 
 // ── Boot: init DB then start listening ────────────────────────────────────
 async function start() {
+  // Verify DB connection before doing anything else
+  const db = require('./database/db')
+  await db.testConnection()
+
   createTables()
   seedAdmin()
   seedSuperAdmin()
