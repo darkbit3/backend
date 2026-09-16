@@ -1,24 +1,4 @@
-const path = require('path')
 const config = require('../config/config')
-
-const isTrue = (value) => ['true', '1', 'yes'].includes(String(value || '').toLowerCase())
-const useSqlite = isTrue(process.env.USE_SQLITE)
-const usePostgres = !useSqlite && process.env.NODE_ENV !== 'test' &&
-  Boolean(
-    process.env.DATABASE_URL ||
-    process.env.DB_URL ||
-    process.env.POSTGRES_URL ||
-    isTrue(process.env.USE_POSTGRES)
-  )
-
-function createSqliteDb() {
-  const Database = require('better-sqlite3')
-  const dbPath = path.resolve(__dirname, '../../', config.db.path)
-  const db = new Database(dbPath)
-  db.pragma('journal_mode = WAL')
-  db.pragma('foreign_keys = ON')
-  return db
-}
 
 function createPostgresDb() {
   const { Pool } = require('pg')
@@ -165,17 +145,17 @@ function createPostgresDb() {
   }
 }
 
-const activeDb = usePostgres ? createPostgresDb() : createSqliteDb()
+const activeDb = createPostgresDb()
 
 module.exports = {
-  dialect: usePostgres ? 'postgres' : 'sqlite',
+  dialect: 'postgres',
   prepare: (sql) => activeDb.prepare(sql),
   exec: (sql) => activeDb.exec(sql),
-  transaction: (callback) => (...args) => callback(...args),
+  transaction: (callback) => activeDb.transaction(callback),
   close: () => {
     if (activeDb && typeof activeDb.close === 'function') return activeDb.close()
     return undefined
   },
-  query: (sql, params = []) => activeDb.query ? activeDb.query(sql, params) : activeDb.prepare(sql).all(...params),
-  raw: (sql, params = []) => activeDb.raw ? activeDb.raw(sql, params) : activeDb.prepare(sql).all(...params),
+  query: (sql, params = []) => activeDb.query(sql, params),
+  raw: (sql, params = []) => activeDb.raw(sql, params),
 }

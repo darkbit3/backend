@@ -14,18 +14,8 @@ function requiredValue(name) {
   return value
 }
 
-const postgresUrl = process.env.DATABASE_URL || process.env.DB_URL || process.env.POSTGRES_URL
-const isTrue = (value) => ['true', '1', 'yes'].includes(String(value || '').toLowerCase())
-const usePostgres = Boolean(
-  process.env.DATABASE_URL ||
-  process.env.DB_URL ||
-  process.env.POSTGRES_URL ||
-  isTrue(process.env.USE_POSTGRES)
-)
-
-if (usePostgres && !postgresUrl) {
-  throw new Error('DATABASE_URL must be set when PostgreSQL is enabled')
-}
+const postgresUrl = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || process.env.DB_URL || process.env.POSTGRES_URL
+if (!postgresUrl) throw new Error('DATABASE_URL or TEST_DATABASE_URL must be set')
 
 module.exports = {
   port: process.env.PORT || 5000,
@@ -37,10 +27,7 @@ module.exports = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   },
   db: {
-    path: process.env.DB_PATH || './data/database.sqlite',
-    url: usePostgres
-      ? postgresUrl
-      : (process.env.DB_PATH || './data/database.sqlite'),
+    url: postgresUrl,
   },
   admin: {
     phone: requiredValue('ADMIN_PHONE'),

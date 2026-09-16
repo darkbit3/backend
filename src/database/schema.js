@@ -318,10 +318,7 @@ function createTables() {
     console.log('[DB] Migration: added material_id to sale_items')
   } catch (_) {}
 
-  // Add Kilogram to materials unit CHECK (SQLite doesn't enforce CHECK on ALTER;
-  // existing rows are fine — new inserts work because SQLite CHECK is not enforced
-  // in older versions, and newer rows use the updated app which passes 'Kilogram')
-  // Ensure the materials table accepts Kilogram by recreating only if needed:
+  // Verify that the PostgreSQL materials metadata is available.
   try {
     const unitCheck = db.prepare(`
       SELECT column_name
@@ -331,10 +328,7 @@ function createTables() {
     if (unitCheck) {
       console.log('[DB] Postgres materials table is ready for Kilogram values when used by the app layer.')
     }
-  } catch (_) {
-    // SQLite does not support information_schema.columns; skip this check in local/dev databases.
-    console.log('[DB] Local SQLite detected; skipping PostgreSQL-only schema metadata check.')
-  }
+  } catch (_) {}
 }
 
 module.exports = { createTables }

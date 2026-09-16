@@ -8,12 +8,10 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "db:init": "node src/database/init.js",
-    "db:migrate:postgres": "node migrate_sqlite_to_postgres.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^11.10.0",
     "cors": "^2.8.5",
     "deasync": "^0.1.30",
     "dotenv": "^16.4.5",
