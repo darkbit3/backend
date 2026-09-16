@@ -20,6 +20,10 @@ router.post('/bulk/delete', validateBulkIds, superAdminManageController.bulkDele
 router.post('/bulk/status', validateBulkIds, validate({ status: { required: true, enum: ['Active', 'Inactive'] } }), superAdminManageController.bulkStatus)
 router.post('/bulk/reset-password', validateBulkIds, validate({ password: { required: true, minLength: 6 } }), superAdminManageController.bulkResetPassword)
 
+// Settings
+router.get('/settings/register-fee', superAdminManageController.getRegisterFee)
+router.put('/settings/register-fee', validate({ fee: { required: true, type: 'number' } }), superAdminManageController.setRegisterFee)
+
 // Stats
 router.get('/stats', superAdminManageController.getStats)
 

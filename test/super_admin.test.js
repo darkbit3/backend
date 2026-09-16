@@ -116,3 +116,22 @@ test('password change reports a missing super-admin as 404', async () => {
   })
   assert.equal(response.status, 404)
 })
+
+test('super admin can view and update the register fee setting', async () => {
+  const getResponse = await request(createApp(), '/api/super/admins/settings/register-fee', {
+    method: 'GET', headers: authHeaders(),
+  })
+  assert.equal(getResponse.status, 200)
+  const current = await getResponse.json()
+  assert.equal(typeof current.data.fee, 'number')
+
+  const updateResponse = await request(createApp(), '/api/super/admins/settings/register-fee', {
+    method: 'PUT', headers: authHeaders(),
+    body: JSON.stringify({ fee: 1500 }),
+  })
+
+  assert.equal(updateResponse.status, 200)
+  const updated = await updateResponse.json()
+  assert.equal(updated.data.fee, 1500)
+  assert.equal(updated.message, 'Register fee updated successfully')
+})

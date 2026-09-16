@@ -293,6 +293,18 @@ function createTables() {
     );
   `)
 
+  // Global app settings such as registration fee, tax, and other company-level values.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS system_settings (
+      id          TEXT PRIMARY KEY,
+      setting_key TEXT NOT NULL UNIQUE,
+      setting_value TEXT NOT NULL,
+      description TEXT,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `)
+
   console.log('[DB] Tables created or already exist.')
 
   // ── Migrations ────────────────────────────────────────────────────────────

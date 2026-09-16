@@ -3,6 +3,27 @@ const { v4: uuidv4 }   = require('uuid')
 const AdminManageModel = require('../models/adminManageModel')
 const db               = require('../database/db')
 
+function getSettingValue(key, fallback = null) {
+  const row = db.prepare('SELECT setting_value FROM system_settings WHERE setting_key = ?').get(key)
+  if (!row) return fallback
+  return row.setting_value
+}
+
+function upsertSetting(key, value, description = '') {
+  const existing = db.prepare('SELECT id FROM system_settings WHERE setting_key = ?').get(key)
+  const now = new Date().toISOString()
+  if (existing) {
+    db.prepare(
+      'UPDATE system_settings SET setting_value = ?, description = COALESCE(?, description), updated_at = ? WHERE id = ?'
+    ).run(String(value), description || null, now, existing.id)
+    return
+  }
+
+  db.prepare(
+    'INSERT INTO system_settings (id, setting_key, setting_value, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(uuidv4(), key, String(value), description || null, now, now)
+}
+
 const superAdminManageService = {
   getAll() {
     return AdminManageModel.findAll()
@@ -80,6 +101,24 @@ const superAdminManageService = {
     const hash = await bcrypt.hash(password, 10)
     const result = AdminManageModel.bulkUpdatePassword(ids, hash)
     if (result.updated !== ids.length) throw { status: 404, message: `${ids.length - result.updated} admin(s) not found` }
+  },
+
+  getRegisterFee() {
+    const raw = getSettingValue('register_fee', '0')
+    const fee = Number(raw)
+    if (Number.isNaN(fee)) return 0
+    return fee
+  },
+
+  setRegisterFee(fee) {
+    const numericFee = Number(fee)
+    if (!Number.isFinite(numericFee) || numericFee < 0) {
+      throw { status: 400, message: 'Register fee must be a valid non-negative number' }
+    }
+
+    const rounded = Number(numericFee.toFixed(2))
+    upsertSetting('register_fee', rounded, 'One-time registration fee charged to new users')
+    return this.getRegisterFee()
   },
 }
 

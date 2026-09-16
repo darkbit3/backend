@@ -110,6 +110,24 @@ const superAdminManageController = {
       next(err)
     }
   },
+
+  getRegisterFee(req, res, next) {
+    try {
+      const data = { fee: superAdminManageService.getRegisterFee() }
+      res.json({ success: true, data, message: 'Register fee fetched successfully' })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  setRegisterFee(req, res, next) {
+    try {
+      const fee = superAdminManageService.setRegisterFee(req.body.fee)
+      res.json({ success: true, data: { fee }, message: 'Register fee updated successfully' })
+    } catch (err) {
+      next(err)
+    }
+  },
 }
 
 module.exports = superAdminManageController
