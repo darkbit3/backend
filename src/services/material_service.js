@@ -123,6 +123,72 @@ const materialService = {
     }
     return { deleted: true }
   },
+
+  recordCut(userId, { materialId, consumedQuantity, producedCloth, outputMaterialName, wasteQuantity = 0, note }) {
+    const consumed = parseFloat(consumedQuantity)
+    const produced = parseFloat(producedCloth)
+    const waste = parseFloat(wasteQuantity)
+    if (!materialId) throw { status: 400, message: 'Material is required.' }
+    if (!Number.isFinite(consumed) || consumed <= 0) {
+      throw { status: 400, message: 'Consumed material must be greater than zero.' }
+    }
+    if (!Number.isFinite(produced) || produced <= 0) {
+      throw { status: 400, message: 'Produced cloth must be greater than zero.' }
+    }
+    if (!outputMaterialName || !String(outputMaterialName).trim()) {
+      throw { status: 400, message: 'Finished product name is required.' }
+    }
+    if (!Number.isFinite(waste) || waste < 0) {
+      throw { status: 400, message: 'Waste quantity cannot be negative.' }
+    }
+
+    const material = MaterialModel.findById(materialId)
+    if (!material) throw { status: 404, message: 'Material not found.' }
+    const ownerId = userId
+    return MaterialModel.recordCut({
+      materialId,
+      ownerId,
+      cutterId: null,
+      consumedQuantity: consumed,
+      producedCloth: produced,
+      outputMaterialName: String(outputMaterialName).trim(),
+      wasteQuantity: waste,
+      note,
+    })
+  },
+
+  recordCutForWorker(workerId, ownerId, { materialId, consumedQuantity, producedCloth, outputMaterialName, wasteQuantity = 0, note }) {
+    const consumed = parseFloat(consumedQuantity)
+    const produced = parseFloat(producedCloth)
+    const waste = parseFloat(wasteQuantity)
+    if (!materialId) throw { status: 400, message: 'Material is required.' }
+    if (!Number.isFinite(consumed) || consumed <= 0) {
+      throw { status: 400, message: 'Consumed material must be greater than zero.' }
+    }
+    if (!Number.isFinite(produced) || produced <= 0) {
+      throw { status: 400, message: 'Produced cloth must be greater than zero.' }
+    }
+    if (!outputMaterialName || !String(outputMaterialName).trim()) {
+      throw { status: 400, message: 'Finished product name is required.' }
+    }
+    if (!Number.isFinite(waste) || waste < 0) {
+      throw { status: 400, message: 'Waste quantity cannot be negative.' }
+    }
+    return MaterialModel.recordCut({
+      materialId,
+      ownerId,
+      cutterId: workerId,
+      consumedQuantity: consumed,
+      producedCloth: produced,
+      outputMaterialName: String(outputMaterialName).trim(),
+      wasteQuantity: waste,
+      note,
+    })
+  },
+
+  listCutHistory(ownerId) {
+    return MaterialModel.findCutHistory(ownerId)
+  },
 }
 
 module.exports = materialService

@@ -74,6 +74,80 @@ const MaterialModel = {
     return db.prepare('DELETE FROM materials WHERE id = ? AND user_id = ?').run(id, userId)
   },
 
+  recordCut({ materialId, ownerId, cutterId, consumedQuantity, producedCloth, outputMaterialName, wasteQuantity, note }) {
+    if (cutterId) {
+      const cutter = db.prepare(
+        'SELECT id FROM cutters WHERE id = ? AND owner_id = ?'
+      ).get(cutterId, ownerId)
+      if (!cutter) throw { status: 403, message: 'Cutter is not assigned to this owner.' }
+    }
+    const material = db.prepare(
+      'SELECT * FROM materials WHERE id = ? AND user_id = ?'
+    ).get(materialId, ownerId)
+    if (!material) return null
+    if (material.quantity < consumedQuantity) {
+      throw { status: 400, message: `Insufficient material. Only ${material.quantity} ${material.unit} remains.` }
+    }
+    const outputName = outputMaterialName.trim()
+
+    const id = uuid()
+    const run = db.transaction(() => {
+      const updated = db.prepare(`
+        UPDATE materials
+        SET quantity = quantity - ?
+        WHERE id = ? AND user_id = ? AND quantity >= ?
+      `).run(consumedQuantity, materialId, ownerId, consumedQuantity)
+      if (updated.changes === 0) {
+        throw { status: 400, message: 'Material quantity changed. Refresh and try again.' }
+      }
+      let output = db.prepare(
+        'SELECT * FROM materials WHERE user_id = ? AND LOWER(name) = LOWER(?) AND unit = ?'
+      ).get(ownerId, outputName, 'Piece')
+      if (output) {
+        db.prepare(`
+          UPDATE materials
+          SET quantity = quantity + ?, initial_quantity = initial_quantity + ?
+          WHERE id = ? AND user_id = ?
+        `).run(producedCloth, producedCloth, output.id, ownerId)
+      } else {
+        const outputId = uuid()
+        db.prepare(`
+          INSERT INTO materials
+            (id, user_id, name, quantity, initial_quantity, unit, unit_price, initial_price, image_url, colors)
+          VALUES (?, ?, ?, ?, ?, 'Piece', 0, 0, '[]', '[]')
+        `).run(outputId, ownerId, outputName, producedCloth, producedCloth)
+        output = { id: outputId, name: outputName }
+      }
+      db.prepare(`
+        INSERT INTO cutting_records
+          (id, material_id, owner_id, cutter_id, material_name, consumed_quantity, produced_cloth,
+           output_material_id, output_material_name, waste_quantity, note)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        id, materialId, ownerId, cutterId || null, material.name,
+        consumedQuantity, producedCloth, output.id, output.name,
+        wasteQuantity, note || null,
+      )
+    })
+    run()
+
+    return MaterialModel.findCutById(id)
+  },
+
+  findCutById(id) {
+    return db.prepare('SELECT * FROM cutting_records WHERE id = ?').get(id)
+  },
+
+  findCutHistory(ownerId) {
+    return db.prepare(`
+      SELECT cr.*, c.name AS cutter_name
+      FROM cutting_records cr
+      LEFT JOIN cutters c ON c.id = cr.cutter_id
+      WHERE cr.owner_id = ?
+      ORDER BY cr.created_at DESC
+    `).all(ownerId)
+  },
+
   // Parse colors and images JSON strings back to arrays
   _parse(row) {
     let colors = []

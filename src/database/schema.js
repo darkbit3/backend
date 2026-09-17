@@ -44,7 +44,7 @@ function createTables() {
     );
   `)
 
-  // Super-admin group chats
+  // ── Fixed groups (4 predefined groups, all members auto-belong) ─────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS chat_groups (
       id          TEXT PRIMARY KEY,
@@ -78,6 +78,22 @@ function createTables() {
       FOREIGN KEY (group_id) REFERENCES chat_groups(id) ON DELETE CASCADE
     );
   `)
+
+  // ── Group categories (created by super admin, with optional image) ───────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS group_categories (
+      id         TEXT PRIMARY KEY,
+      group_id   TEXT NOT NULL,
+      name       TEXT NOT NULL,
+      image_url  TEXT,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (group_id) REFERENCES chat_groups(id) ON DELETE CASCADE
+    );
+  `)
+
+  // Migrate: add image_url to group_categories if upgrading existing DB
+  try { db.exec(`ALTER TABLE group_categories ADD COLUMN IF NOT EXISTS image_url TEXT;`) } catch (_) {}
 
   // Migrate existing DB — add plain_password and account_type columns if they don't exist yet
   try {
@@ -232,6 +248,30 @@ function createTables() {
     );
   `)
 
+  // Cutting records: raw material consumed and cloth produced by a cutter.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS cutting_records (
+      id                 TEXT PRIMARY KEY,
+      material_id        TEXT NOT NULL,
+      owner_id           TEXT NOT NULL,
+      cutter_id          TEXT,
+      material_name      TEXT NOT NULL,
+      consumed_quantity  REAL NOT NULL,
+      produced_cloth     REAL NOT NULL,
+      output_material_id TEXT,
+      output_material_name TEXT NOT NULL,
+      waste_quantity     REAL NOT NULL DEFAULT 0,
+      note               TEXT,
+      created_at         TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE CASCADE,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (cutter_id) REFERENCES cutters(id) ON DELETE SET NULL
+    );
+  `)
+
+  try { db.exec(`ALTER TABLE cutting_records ADD COLUMN output_material_id TEXT;`) } catch (_) {}
+  try { db.exec(`ALTER TABLE cutting_records ADD COLUMN output_material_name TEXT DEFAULT 'Finished Cloth';`) } catch (_) {}
+
   // Migration for initial_quantity column if adding to existing database
   try {
     db.exec("ALTER TABLE materials ADD COLUMN initial_quantity REAL DEFAULT 0;")
@@ -344,6 +384,25 @@ function createTables() {
 
   try { db.exec(`ALTER TABLE registration_requests ADD COLUMN telegram_username TEXT;`) } catch (_) {}
   try { db.exec(`ALTER TABLE registration_requests ADD COLUMN account_detail TEXT;`) } catch (_) {}
+
+  // ── Seed the 4 fixed groups if they don't exist yet ──────────────────────
+  const FIXED_GROUPS = [
+    { id: 'group-cherk',    name: 'Cherk Group',    description: 'Cherk community group' },
+    { id: 'group-general',  name: 'General Group',  description: 'General announcements' },
+    { id: 'group-business', name: 'Business Group', description: 'Business discussions' },
+    { id: 'group-support',  name: 'Support Group',  description: 'Support and help' },
+  ]
+  const superAdminRow = db.prepare('SELECT id FROM super_admins ORDER BY created_at ASC LIMIT 1').get()
+  const seedCreatedBy = superAdminRow ? superAdminRow.id : 'system'
+  for (const g of FIXED_GROUPS) {
+    try {
+      db.prepare(`
+        INSERT INTO chat_groups (id, name, description, created_by, created_at)
+        VALUES (?, ?, ?, ?, NOW())
+        ON CONFLICT (id) DO NOTHING
+      `).run(g.id, g.name, g.description, seedCreatedBy)
+    } catch (_) {}
+  }
 
   console.log('[DB] Tables created or already exist.')
 

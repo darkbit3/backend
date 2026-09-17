@@ -6,7 +6,7 @@ const morgan       = require('morgan')
 const rateLimit    = require('express-rate-limit')
 const config       = require('./config/config')
 const { createTables } = require('./database/schema')
-const { seedAdmin, seedSuperAdmin }  = require('./database/init')
+const { seedAdmin, seedSuperAdmin, reseedFixedGroups }  = require('./database/init')
 const errorHandler = require('./middleware/errorHandler')
 const authRoutes            = require('./routes/admin_login_route')
 const userRoutes            = require('./routes/admin_manage_route')
@@ -136,6 +136,7 @@ async function start() {
   createTables()
   seedAdmin()
   seedSuperAdmin()
+  reseedFixedGroups()
 
   const port = Number(process.env.PORT) || config.port || 5000
   return new Promise((resolve) => {

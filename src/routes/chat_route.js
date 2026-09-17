@@ -58,34 +58,51 @@ router.get('/groups', (req, res, next) => {
     if (decoded.type === 'super_admin') return chatController.getGroupsForSuperAdmin(req, res, next)
     if (decoded.type === 'admin' || !decoded.type) return chatController.getGroupsForAdmin(req, res, next)
     if (decoded.type === 'user') return chatController.getGroupsForUser(req, res, next)
-    return res.status(403).json({ success: false, message: 'Groups are only available for group members' })
+    return res.status(403).json({ success: false, message: 'Forbidden' })
   } catch (err) {
     return res.status(401).json({ success: false, message: err.message || 'Invalid token' })
   }
 })
 
+// Groups are fixed — creation is disabled
 router.post('/groups', authenticateSuperAdmin, chatController.createGroupForSuperAdmin)
+
 router.get('/groups/:groupId/messages', (req, res, next) => {
   try {
     const decoded = attachDecodedUser(req)
     if (decoded.type === 'super_admin') return chatController.getGroupMessagesForSuperAdmin(req, res, next)
     if (decoded.type === 'admin' || !decoded.type) return chatController.getGroupMessagesForAdmin(req, res, next)
     if (decoded.type === 'user') return chatController.getGroupMessagesForUser(req, res, next)
-    return res.status(403).json({ success: false, message: 'Group messages are only available for group members' })
+    return res.status(403).json({ success: false, message: 'Forbidden' })
   } catch (err) {
     return res.status(401).json({ success: false, message: err.message || 'Invalid token' })
   }
 })
+
 router.post('/groups/:groupId/send', (req, res, next) => {
   try {
     const decoded = attachDecodedUser(req)
     if (decoded.type === 'super_admin') return chatController.sendGroupMessageForSuperAdmin(req, res, next)
     if (decoded.type === 'admin' || !decoded.type) return chatController.sendGroupMessageForAdmin(req, res, next)
     if (decoded.type === 'user') return chatController.sendGroupMessageForUser(req, res, next)
-    return res.status(403).json({ success: false, message: 'Group messages are only available for group members' })
+    return res.status(403).json({ success: false, message: 'Forbidden' })
   } catch (err) {
     return res.status(401).json({ success: false, message: err.message || 'Invalid token' })
   }
 })
+
+// ── Group categories (super admin only) ──────────────────────────────────────
+router.get('/groups/:groupId/categories', (req, res, next) => {
+  try {
+    attachDecodedUser(req)
+    chatController.getCategoriesForGroup(req, res, next)
+  } catch (err) {
+    return res.status(401).json({ success: false, message: err.message || 'Invalid token' })
+  }
+})
+
+router.post('/groups/:groupId/categories', authenticateSuperAdmin, chatController.createCategoryForGroup)
+router.delete('/groups/:groupId/categories/:categoryId', authenticateSuperAdmin, chatController.deleteCategoryForGroup)
+
 
 module.exports = router

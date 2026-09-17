@@ -9,6 +9,8 @@ router.post('/',              materialController.create)
 router.get('/',              materialController.list)
 router.get('/owner-stock',   materialController.listOwnerStock)
 router.get('/low-stock',     materialController.listLowStock)
+router.post('/cut',          materialController.recordCut)
+router.get('/cut-history',   materialController.cutHistory)
 router.put('/:id',           materialController.update)
 router.delete('/:id',        materialController.remove)
 

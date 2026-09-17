@@ -70,6 +70,29 @@ const materialController = {
       next(err)
     }
   },
+
+  recordCut(req, res, next) {
+    try {
+      const ownerId = req.user.owner_id || req.user.id
+      const data = req.user.owner_id
+        ? materialService.recordCutForWorker(req.user.id, ownerId, req.body)
+        : materialService.recordCut(req.user.id, req.body)
+      res.status(201).json({ success: true, message: 'Cutting production recorded', data })
+    } catch (err) {
+      if (err.status) return res.status(err.status).json({ success: false, message: err.message })
+      next(err)
+    }
+  },
+
+  cutHistory(req, res, next) {
+    try {
+      const ownerId = req.user.owner_id || req.user.id
+      const data = materialService.listCutHistory(ownerId)
+      res.json({ success: true, data })
+    } catch (err) {
+      next(err)
+    }
+  },
 }
 
 module.exports = materialController
