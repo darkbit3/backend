@@ -73,11 +73,17 @@ function createTables() {
       sender_id   TEXT NOT NULL,
       sender_role TEXT NOT NULL CHECK(sender_role IN ('super_admin', 'admin', 'user')),
       message     TEXT NOT NULL,
+      image_url   TEXT,
+      phone_number TEXT,
       status      TEXT NOT NULL DEFAULT 'sent' CHECK(status IN ('sent', 'read')),
       created_at  TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (group_id) REFERENCES chat_groups(id) ON DELETE CASCADE
     );
   `)
+
+  // Migrate: add image_url and phone_number to existing chat_group_messages
+  try { db.exec(`ALTER TABLE chat_group_messages ADD COLUMN IF NOT EXISTS image_url TEXT;`) } catch (_) {}
+  try { db.exec(`ALTER TABLE chat_group_messages ADD COLUMN IF NOT EXISTS phone_number TEXT;`) } catch (_) {}
 
   // ── Group categories (created by super admin, with optional image) ───────
   db.exec(`

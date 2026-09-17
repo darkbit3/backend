@@ -415,7 +415,7 @@ const chatController = {
         return res.status(404).json({ success: false, message: 'Group not found' })
       }
       const rows = db.prepare(`
-        SELECT id, sender_id, sender_role, message, status, created_at
+        SELECT id, sender_id, sender_role, message, image_url, phone_number, status, created_at
         FROM chat_group_messages WHERE group_id = ? ORDER BY created_at ASC
       `).all(groupId)
       db.prepare(`UPDATE chat_group_messages SET status = 'read' WHERE group_id = ? AND status = 'sent'`).run(groupId)
@@ -423,7 +423,9 @@ const chatController = {
         success: true,
         data: rows.map((msg) => ({
           id: msg.id, senderId: msg.sender_id, senderRole: msg.sender_role,
-          message: msg.message, status: msg.status, createdAt: msg.created_at,
+          message: msg.message, imageUrl: msg.image_url || null,
+          phoneNumber: msg.phone_number || null,
+          status: msg.status, createdAt: msg.created_at,
           isMine: msg.sender_id === req.superAdmin.id && msg.sender_role === 'super_admin',
         })),
       })
@@ -437,7 +439,7 @@ const chatController = {
         return res.status(404).json({ success: false, message: 'Group not found' })
       }
       const rows = db.prepare(`
-        SELECT id, sender_id, sender_role, message, status, created_at
+        SELECT id, sender_id, sender_role, message, image_url, phone_number, status, created_at
         FROM chat_group_messages WHERE group_id = ? ORDER BY created_at ASC
       `).all(groupId)
       db.prepare(`UPDATE chat_group_messages SET status = 'read' WHERE group_id = ? AND status = 'sent'`).run(groupId)
@@ -445,7 +447,9 @@ const chatController = {
         success: true,
         data: rows.map((msg) => ({
           id: msg.id, senderId: msg.sender_id, senderRole: msg.sender_role,
-          message: msg.message, status: msg.status, createdAt: msg.created_at,
+          message: msg.message, imageUrl: msg.image_url || null,
+          phoneNumber: msg.phone_number || null,
+          status: msg.status, createdAt: msg.created_at,
           isMine: msg.sender_id === req.admin.id && msg.sender_role === 'admin',
         })),
       })
@@ -459,7 +463,7 @@ const chatController = {
         return res.status(404).json({ success: false, message: 'Group not found' })
       }
       const rows = db.prepare(`
-        SELECT id, sender_id, sender_role, message, status, created_at
+        SELECT id, sender_id, sender_role, message, image_url, phone_number, status, created_at
         FROM chat_group_messages WHERE group_id = ? ORDER BY created_at ASC
       `).all(groupId)
       db.prepare(`UPDATE chat_group_messages SET status = 'read' WHERE group_id = ? AND status = 'sent'`).run(groupId)
@@ -467,7 +471,9 @@ const chatController = {
         success: true,
         data: rows.map((msg) => ({
           id: msg.id, senderId: msg.sender_id, senderRole: msg.sender_role,
-          message: msg.message, status: msg.status, createdAt: msg.created_at,
+          message: msg.message, imageUrl: msg.image_url || null,
+          phoneNumber: msg.phone_number || null,
+          status: msg.status, createdAt: msg.created_at,
           isMine: msg.sender_id === req.user.id && msg.sender_role === 'user',
         })),
       })
@@ -477,16 +483,24 @@ const chatController = {
   sendGroupMessageForSuperAdmin(req, res, next) {
     try {
       const { groupId } = req.params
-      const { message } = req.body
-      if (!message || !String(message).trim()) {
-        return res.status(400).json({ success: false, message: 'Message text is required' })
+      const { message, image_url, phone_number } = req.body
+      const text = String(message || '').trim()
+      if (!text && !image_url) {
+        return res.status(400).json({ success: false, message: 'Message text or image is required' })
       }
       if (!FIXED_GROUP_IDS.includes(groupId)) {
         return res.status(404).json({ success: false, message: 'Group not found' })
       }
-      const row = { id: uuidv4(), group_id: groupId, sender_id: req.superAdmin.id, sender_role: 'super_admin', message: String(message).trim(), created_at: new Date().toISOString() }
-      db.prepare(`INSERT INTO chat_group_messages (id, group_id, sender_id, sender_role, message, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
-        .run(row.id, row.group_id, row.sender_id, row.sender_role, row.message, row.created_at)
+      const row = {
+        id: uuidv4(), group_id: groupId,
+        sender_id: req.superAdmin.id, sender_role: 'super_admin',
+        message: text || '',
+        image_url: image_url || null,
+        phone_number: phone_number ? String(phone_number).trim() : null,
+        created_at: new Date().toISOString(),
+      }
+      db.prepare(`INSERT INTO chat_group_messages (id, group_id, sender_id, sender_role, message, image_url, phone_number, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(row.id, row.group_id, row.sender_id, row.sender_role, row.message, row.image_url, row.phone_number, row.created_at)
       res.status(201).json({ success: true, data: row })
     } catch (err) { next(err) }
   },
@@ -494,16 +508,24 @@ const chatController = {
   sendGroupMessageForAdmin(req, res, next) {
     try {
       const { groupId } = req.params
-      const { message } = req.body
-      if (!message || !String(message).trim()) {
-        return res.status(400).json({ success: false, message: 'Message text is required' })
+      const { message, image_url, phone_number } = req.body
+      const text = String(message || '').trim()
+      if (!text && !image_url) {
+        return res.status(400).json({ success: false, message: 'Message text or image is required' })
       }
       if (!FIXED_GROUP_IDS.includes(groupId)) {
         return res.status(404).json({ success: false, message: 'Group not found' })
       }
-      const row = { id: uuidv4(), group_id: groupId, sender_id: req.admin.id, sender_role: 'admin', message: String(message).trim(), created_at: new Date().toISOString() }
-      db.prepare(`INSERT INTO chat_group_messages (id, group_id, sender_id, sender_role, message, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
-        .run(row.id, row.group_id, row.sender_id, row.sender_role, row.message, row.created_at)
+      const row = {
+        id: uuidv4(), group_id: groupId,
+        sender_id: req.admin.id, sender_role: 'admin',
+        message: text || '',
+        image_url: image_url || null,
+        phone_number: phone_number ? String(phone_number).trim() : null,
+        created_at: new Date().toISOString(),
+      }
+      db.prepare(`INSERT INTO chat_group_messages (id, group_id, sender_id, sender_role, message, image_url, phone_number, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(row.id, row.group_id, row.sender_id, row.sender_role, row.message, row.image_url, row.phone_number, row.created_at)
       res.status(201).json({ success: true, data: row })
     } catch (err) { next(err) }
   },
@@ -511,16 +533,24 @@ const chatController = {
   sendGroupMessageForUser(req, res, next) {
     try {
       const { groupId } = req.params
-      const { message } = req.body
-      if (!message || !String(message).trim()) {
-        return res.status(400).json({ success: false, message: 'Message text is required' })
+      const { message, image_url, phone_number } = req.body
+      const text = String(message || '').trim()
+      if (!text && !image_url) {
+        return res.status(400).json({ success: false, message: 'Message text or image is required' })
       }
       if (!FIXED_GROUP_IDS.includes(groupId)) {
         return res.status(404).json({ success: false, message: 'Group not found' })
       }
-      const row = { id: uuidv4(), group_id: groupId, sender_id: req.user.id, sender_role: 'user', message: String(message).trim(), created_at: new Date().toISOString() }
-      db.prepare(`INSERT INTO chat_group_messages (id, group_id, sender_id, sender_role, message, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
-        .run(row.id, row.group_id, row.sender_id, row.sender_role, row.message, row.created_at)
+      const row = {
+        id: uuidv4(), group_id: groupId,
+        sender_id: req.user.id, sender_role: 'user',
+        message: text || '',
+        image_url: image_url || null,
+        phone_number: phone_number ? String(phone_number).trim() : null,
+        created_at: new Date().toISOString(),
+      }
+      db.prepare(`INSERT INTO chat_group_messages (id, group_id, sender_id, sender_role, message, image_url, phone_number, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(row.id, row.group_id, row.sender_id, row.sender_role, row.message, row.image_url, row.phone_number, row.created_at)
       res.status(201).json({ success: true, data: row })
     } catch (err) { next(err) }
   },

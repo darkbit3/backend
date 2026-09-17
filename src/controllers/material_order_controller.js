@@ -1,9 +1,10 @@
 const materialOrderService = require('../services/material_order_service')
+const db = require('../database/db')
 
 const materialOrderController = {
   create(req, res, next) {
     try {
-      if (!req.user.owner_id) {
+      if (!req.user.owner_id || !db.prepare('SELECT id FROM cashiers WHERE id = ?').get(req.user.id)) {
         return res.status(403).json({ success: false, message: 'Only cashiers can request materials.' })
       }
       const ownerId = req.user.owner_id || req.user.id
