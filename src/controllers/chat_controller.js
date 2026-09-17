@@ -148,7 +148,13 @@ function getConversationRecords(currentUserId, currentRole, otherUserId) {
 // FIXED GROUPS HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
-const FIXED_GROUP_IDS = ['group-cherk', 'group-general', 'group-business', 'group-support']
+const FIXED_GROUP_IDS = [
+  'group-cherk',
+  'group-textile',
+  'group-accessory',
+  'group-manufacturing',
+  'group-boutique-garment',
+]
 
 /** All admins + all users are considered members of every fixed group */
 function isFixedGroupMember(groupId, userId, userRole) {

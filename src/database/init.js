@@ -58,13 +58,19 @@ function seedSuperAdmin() {
 }
 
 /**
- * After super_admins exist, back-fill the created_by on the 4 fixed groups
+ * After super_admins exist, back-fill the created_by on the 5 fixed groups
  * from 'system' to the real super admin id.
  */
 function reseedFixedGroups() {
   const superAdminRow = db.prepare('SELECT id FROM super_admins ORDER BY created_at ASC LIMIT 1').get()
   if (!superAdminRow) return
-  const FIXED_GROUP_IDS = ['group-cherk', 'group-general', 'group-business', 'group-support']
+  const FIXED_GROUP_IDS = [
+    'group-cherk',
+    'group-textile',
+    'group-accessory',
+    'group-manufacturing',
+    'group-boutique-garment',
+  ]
   const update = db.prepare(`UPDATE chat_groups SET created_by = ? WHERE id = ? AND created_by = 'system'`)
   for (const id of FIXED_GROUP_IDS) {
     update.run(superAdminRow.id, id)

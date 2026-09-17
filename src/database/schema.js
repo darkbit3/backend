@@ -411,12 +411,13 @@ function createTables() {
   try { db.exec(`ALTER TABLE registration_requests ADD COLUMN telegram_username TEXT;`) } catch (_) {}
   try { db.exec(`ALTER TABLE registration_requests ADD COLUMN account_detail TEXT;`) } catch (_) {}
 
-  // ── Seed the 4 fixed groups if they don't exist yet ──────────────────────
+  // ── Seed the 5 fixed business groups if they don't exist yet ─────────────
   const FIXED_GROUPS = [
-    { id: 'group-cherk',    name: 'Cherk Group',    description: 'Cherk community group' },
-    { id: 'group-general',  name: 'General Group',  description: 'General announcements' },
-    { id: 'group-business', name: 'Business Group', description: 'Business discussions' },
-    { id: 'group-support',  name: 'Support Group',  description: 'Support and help' },
+    { id: 'group-cherk',          name: 'Cherk',                description: 'Cherk community group' },
+    { id: 'group-textile',        name: 'Textile',              description: 'Textile materials and products' },
+    { id: 'group-accessory',      name: 'Accessory',            description: 'Accessories and supplies' },
+    { id: 'group-manufacturing',  name: 'Manufacturing',        description: 'Manufacturing and production' },
+    { id: 'group-boutique-garment', name: 'Boutique and Garment', description: 'Boutique and garment business' },
   ]
   const superAdminRow = db.prepare('SELECT id FROM super_admins ORDER BY created_at ASC LIMIT 1').get()
   const seedCreatedBy = superAdminRow ? superAdminRow.id : 'system'
