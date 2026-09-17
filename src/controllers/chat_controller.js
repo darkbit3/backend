@@ -1,6 +1,40 @@
 const db = require('../database/db')
 const { v4: uuidv4 } = require('uuid')
 
+const CHAT_VISIBILITY_KEYS = {
+  hidePeople: 'chat_hide_people',
+  hideGroups: 'chat_hide_groups',
+}
+
+function getChatVisibility() {
+  const rows = db.prepare(
+    'SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN (?, ?)'
+  ).all(CHAT_VISIBILITY_KEYS.hidePeople, CHAT_VISIBILITY_KEYS.hideGroups)
+  const values = Object.fromEntries(rows.map((row) => [row.setting_key, row.setting_value]))
+  return {
+    hidePeople: values[CHAT_VISIBILITY_KEYS.hidePeople] === 'true',
+    hideGroups: values[CHAT_VISIBILITY_KEYS.hideGroups] === 'true',
+  }
+}
+
+function setChatVisibility({ hidePeople, hideGroups }) {
+  const now = new Date().toISOString()
+  const upsert = db.prepare(`
+    INSERT INTO system_settings (id, setting_key, setting_value, description, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(setting_key) DO UPDATE SET
+      setting_value = excluded.setting_value,
+      description = excluded.description,
+      updated_at = excluded.updated_at
+  `)
+  const run = db.transaction(() => {
+    upsert.run(uuidv4(), CHAT_VISIBILITY_KEYS.hidePeople, String(hidePeople), 'Hide people from all chat pages', now, now)
+    upsert.run(uuidv4(), CHAT_VISIBILITY_KEYS.hideGroups, String(hideGroups), 'Hide groups from all chat pages', now, now)
+  })
+  run()
+  return getChatVisibility()
+}
+
 function normalizeRole(role) {
   if (role === 'super_admin') return 'super_admin'
   if (role === 'admin') return 'admin'
@@ -33,6 +67,7 @@ function buildPersonList({ records, currentUserId, currentRole, search = '' }) {
 }
 
 function getChatPeopleForRole(type, currentUserId, search = '') {
+  if (getChatVisibility().hidePeople) return []
   if (type === 'admin') {
     const userRows = db.prepare(`
       SELECT u.id, u.name, u.phone, u.role, u.status
@@ -152,10 +187,31 @@ function getFixedGroupWithCategories(groupId) {
 }
 
 function getAllFixedGroups() {
+  if (getChatVisibility().hideGroups) return []
   return FIXED_GROUP_IDS.map(getFixedGroupWithCategories).filter(Boolean)
 }
 
 const chatController = {
+  getVisibility(req, res, next) {
+    try {
+      res.json({ success: true, data: getChatVisibility() })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  updateVisibility(req, res, next) {
+    try {
+      const { hidePeople, hideGroups } = req.body
+      if (typeof hidePeople !== 'boolean' || typeof hideGroups !== 'boolean') {
+        return res.status(400).json({ success: false, message: 'hidePeople and hideGroups must be boolean values' })
+      }
+      res.json({ success: true, data: setChatVisibility({ hidePeople, hideGroups }) })
+    } catch (err) {
+      next(err)
+    }
+  },
+
   getPeopleForAdmin(req, res, next) {
     try {
       const search = req.query.search || ''

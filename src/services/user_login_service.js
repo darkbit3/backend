@@ -52,11 +52,103 @@ function findByPhoneAcrossTables(phone) {
   return null
 }
 
-// ── In-memory OTP store: { phone -> { otp, expiresAt, userId, table } } ──────
+// ── AfroMessage SMS helpers ───────────────────────────────────────────────────
+//
+// Uses the /challenge endpoint to send a 6-digit numeric OTP via SMS
+// and /verify to confirm the code the user submits.
+//
+// Required env vars:
+//   AFROMESSAGE_API_KEY    — Bearer token from your AfroMessage dashboard
+//   AFROMESSAGE_SENDER_ID  — your approved sender name (e.g. "Shmeta")
+//   AFROMESSAGE_IDENTIFIER — your shortcode/identifier id (leave empty to use default)
+//
+// If AFROMESSAGE_API_KEY is not set the service falls back to dev mode:
+//   - generates its own 6-digit code
+//   - stores it in-memory
+//   - returns the code in the API response (visible only in development)
+
+// Fallback in-memory store used when AfroMessage key is not configured
+// { normalizedPhone -> { otp, expiresAt, userId, table } }
 const otpStore = new Map()
 
-function generateOtp() {
-  return String(Math.floor(100000 + Math.random() * 900000))
+function toIntlPhone(phone) {
+  let digits = String(phone).replace(/\D/g, '')
+  if (digits.startsWith('0'))   digits = '251' + digits.slice(1)
+  if (!digits.startsWith('251')) digits = '251' + digits
+  return digits
+}
+
+/**
+ * Send OTP via AfroMessage /challenge endpoint.
+ * Returns { verificationId, code? } where code is only present in dev-fallback mode.
+ */
+async function afroSendChallenge(phone) {
+  const apiKey    = process.env.AFROMESSAGE_API_KEY
+  const senderId  = process.env.AFROMESSAGE_SENDER_ID  || ''
+  const fromId    = process.env.AFROMESSAGE_IDENTIFIER || ''
+  const intlPhone = toIntlPhone(phone)
+
+  if (!apiKey) {
+    // Dev fallback — generate locally, skip SMS
+    console.warn('[SMS] AFROMESSAGE_API_KEY not set — using dev fallback (no SMS sent).')
+    const otp = String(Math.floor(100000 + Math.random() * 900000))
+    return { verificationId: null, devOtp: otp }
+  }
+
+  const params = new URLSearchParams({
+    from:   fromId,
+    sender: senderId,
+    to:     intlPhone,
+    pr:     'Your Shmeta verification code is',  // prefix before the code
+    ps:     '. Valid for 10 minutes. Do not share it.',  // postfix after the code
+    sb:     '1',   // 1 space before code
+    sa:     '0',   // no space after code (postfix starts with period)
+    ttl:    '600', // 10 minutes
+    len:    '6',   // 6-digit code
+    t:      '0',   // numeric only
+  })
+
+  const url = `https://api.afromessage.com/api/challenge?${params.toString()}`
+
+  const res  = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } })
+  const data = await res.json()
+
+  if (data?.acknowledge !== 'success') {
+    console.error('[SMS] AfroMessage /challenge failed:', JSON.stringify(data))
+    throw { status: 502, message: 'Failed to send verification code. Please try again.' }
+  }
+
+  console.log(`[SMS] OTP challenge sent to ${intlPhone}, verificationId=${data.response.verificationId}`)
+  return { verificationId: data.response.verificationId, devOtp: null }
+}
+
+/**
+ * Verify OTP via AfroMessage /verify endpoint.
+ * Returns true if valid, throws on failure.
+ */
+async function afroVerifyCode(phone, verificationId, code) {
+  const apiKey    = process.env.AFROMESSAGE_API_KEY
+  const intlPhone = toIntlPhone(phone)
+
+  if (!apiKey) {
+    // Dev fallback — verified by in-memory store (handled by caller)
+    return false // signal caller to use local store
+  }
+
+  // AfroMessage accepts either `to` OR `vc` (verificationId)
+  const params = new URLSearchParams({ to: intlPhone, code })
+  if (verificationId) params.set('vc', verificationId)
+
+  const url  = `https://api.afromessage.com/api/verify?${params.toString()}`
+  const res  = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } })
+  const data = await res.json()
+
+  if (data?.acknowledge !== 'success') {
+    console.warn('[SMS] OTP verify failed:', JSON.stringify(data))
+    throw { status: 400, message: 'Invalid or expired verification code.' }
+  }
+
+  return true
 }
 
 const userLoginService = {
@@ -190,10 +282,11 @@ const userLoginService = {
     throw { status: 401, message: 'Invalid phone or password' }
   },
 
-  // ── Forgot password: Step 1 — verify phone exists, issue OTP ─────────────
-  checkPhone(phone) {
+  // ── Forgot password: Step 1 — verify phone exists, send OTP via AfroMessage ─
+  async checkPhone(phone) {
     const normalizedPhone = normalizePhone(phone)
     if (!normalizedPhone) throw { status: 400, message: 'Phone must be 09/07, 251, or +251 followed by 9 digits' }
+
     let found = null
     let table = null
 
@@ -211,34 +304,54 @@ const userLoginService = {
 
     if (!found) throw { status: 404, message: 'No account found with this phone number.' }
 
-    const otp       = generateOtp()
-    const expiresAt = Date.now() + 5 * 60 * 1000 // 5 minutes
-    otpStore.set(normalizedPhone, { otp, expiresAt, userId: found.id, table })
+    // Send OTP via AfroMessage /challenge (or fallback dev mode)
+    const { verificationId, devOtp } = await afroSendChallenge(normalizedPhone)
 
-    // In production replace this with real SMS. For now we return the OTP.
-    console.log(`[OTP] Phone ${normalizedPhone} → OTP ${otp}`)
-    return { name: found.name, otp }
+    // Store verification state so Step 2 can look up userId/table and verificationId
+    const expiresAt = Date.now() + 10 * 60 * 1000 // 10 min safety window
+    otpStore.set(normalizedPhone, {
+      verificationId,
+      devOtp,          // non-null only in dev fallback
+      expiresAt,
+      userId: found.id,
+      table,
+    })
+
+    const isDev = (process.env.NODE_ENV || 'development') === 'development'
+    return {
+      name: found.name,
+      // Only expose the dev OTP when in dev mode AND no SMS was sent
+      ...(isDev && devOtp ? { otp: devOtp } : {}),
+    }
   },
 
   // ── Forgot password: Step 2 — verify OTP, reset password ─────────────────
   async verifyOtp(phone, otp, newPassword) {
     const normalizedPhone = normalizePhone(phone)
     const entry = otpStore.get(normalizedPhone)
-    if (!entry)                       throw { status: 400, message: 'No OTP request found. Please request again.' }
-    if (Date.now() > entry.expiresAt) { otpStore.delete(phone); throw { status: 400, message: 'OTP has expired. Please request again.' } }
-    if (entry.otp !== otp)            throw { status: 400, message: 'Invalid OTP. Please try again.' }
+
+    if (!entry)                       throw { status: 400, message: 'No OTP request found. Please request a new code.' }
+    if (Date.now() > entry.expiresAt) { otpStore.delete(normalizedPhone); throw { status: 400, message: 'Verification code has expired. Please request a new one.' } }
+
+    if (entry.verificationId) {
+      // Production: verify against AfroMessage /verify
+      await afroVerifyCode(normalizedPhone, entry.verificationId, otp)
+    } else {
+      // Dev fallback: verify against local store
+      if (entry.devOtp !== otp) throw { status: 400, message: 'Invalid verification code. Please try again.' }
+    }
 
     const hash = await bcrypt.hash(newPassword, 10)
 
     if (entry.table === 'users') {
       UserModel.updatePassword(entry.userId, hash, newPassword)
     } else if (entry.table === 'cashiers') {
-      db.prepare(`UPDATE cashiers SET password=?, plain_password=?, updated_at=datetime('now') WHERE id=?`).run(hash, newPassword, entry.userId)
+      db.prepare(`UPDATE cashiers SET password=?, plain_password=?, updated_at=NOW() WHERE id=?`).run(hash, newPassword, entry.userId)
     } else {
-      db.prepare(`UPDATE cutters SET password=?, plain_password=?, updated_at=datetime('now') WHERE id=?`).run(hash, newPassword, entry.userId)
+      db.prepare(`UPDATE cutters SET password=?, plain_password=?, updated_at=NOW() WHERE id=?`).run(hash, newPassword, entry.userId)
     }
 
-    otpStore.delete(phone)
+    otpStore.delete(normalizedPhone)
     return { message: 'Password reset successfully.' }
   },
 

@@ -64,11 +64,11 @@ const userLoginController = {
   },
 
   // POST /api/user-auth/forgot-password/check-phone
-  checkPhone(req, res, next) {
+  async checkPhone(req, res, next) {
     try {
       const { phone } = req.body
       if (!phone) return res.status(400).json({ success: false, message: 'Phone is required.' })
-      const result = userLoginService.checkPhone(phone)
+      const result = await userLoginService.checkPhone(phone)
       res.json({ success: true, data: result })
     } catch (err) {
       if (err.status) return res.status(err.status).json({ success: false, message: err.message })

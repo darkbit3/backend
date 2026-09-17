@@ -104,5 +104,8 @@ router.get('/groups/:groupId/categories', (req, res, next) => {
 router.post('/groups/:groupId/categories', authenticateSuperAdmin, chatController.createCategoryForGroup)
 router.delete('/groups/:groupId/categories/:categoryId', authenticateSuperAdmin, chatController.deleteCategoryForGroup)
 
+router.get('/settings/visibility', authenticateSuperAdmin, chatController.getVisibility)
+router.put('/settings/visibility', authenticateSuperAdmin, chatController.updateVisibility)
+
 
 module.exports = router
