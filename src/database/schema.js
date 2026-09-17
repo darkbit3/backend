@@ -248,6 +248,26 @@ function createTables() {
     );
   `)
 
+  // Replenishment requests created by cashiers.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS material_orders (
+      id             TEXT PRIMARY KEY,
+      owner_id       TEXT NOT NULL,
+      requester_id   TEXT NOT NULL,
+      requester_role TEXT NOT NULL DEFAULT 'Cashier',
+      material_id    TEXT,
+      material_name  TEXT NOT NULL,
+      quantity       REAL NOT NULL,
+      note           TEXT,
+      status         TEXT NOT NULL DEFAULT 'Pending'
+                     CHECK(status IN ('Pending', 'Approved', 'Fulfilled', 'Rejected')),
+      created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at     TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE SET NULL
+    );
+  `)
+
   // Cutting records: raw material consumed and cloth produced by a cutter.
   db.exec(`
     CREATE TABLE IF NOT EXISTS cutting_records (

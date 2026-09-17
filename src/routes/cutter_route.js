@@ -6,6 +6,18 @@ const { validate }       = require('../middleware/validate')
 
 router.use(authenticateUser)
 
+// Cutters are only for Manufacturer accounts
+function requireManufacturer(req, res, next) {
+  const db = require('../database/db')
+  const user = db.prepare('SELECT role FROM users WHERE id = ?').get(req.user.id)
+  if (!user || user.role !== 'Manufacturer') {
+    return res.status(403).json({ success: false, message: 'Only Manufacturer accounts can manage cutters.' })
+  }
+  next()
+}
+
+router.use(requireManufacturer)
+
 // GET  /api/cutters
 router.get('/', cutterController.getAll)
 
