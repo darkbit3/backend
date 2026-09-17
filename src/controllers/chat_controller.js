@@ -150,9 +150,9 @@ function getConversationRecords(currentUserId, currentRole, otherUserId) {
 
 const FIXED_GROUP_IDS = [
   'group-cherk',
-  'group-textile',
-  'group-accessory',
-  'group-manufacturing',
+  'group-general',
+  'group-business',
+  'group-support',
   'group-boutique-garment',
 ]
 

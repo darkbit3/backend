@@ -414,9 +414,9 @@ function createTables() {
   // ── Seed the 5 fixed business groups if they don't exist yet ─────────────
   const FIXED_GROUPS = [
     { id: 'group-cherk',          name: 'Cherk',                description: 'Cherk community group' },
-    { id: 'group-textile',        name: 'Textile',              description: 'Textile materials and products' },
-    { id: 'group-accessory',      name: 'Accessory',            description: 'Accessories and supplies' },
-    { id: 'group-manufacturing',  name: 'Manufacturing',        description: 'Manufacturing and production' },
+    { id: 'group-general',        name: 'Textile',              description: 'Textile materials and products' },
+    { id: 'group-business',       name: 'Accessory',            description: 'Accessories and supplies' },
+    { id: 'group-support',        name: 'Manufacturing',        description: 'Manufacturing and production' },
     { id: 'group-boutique-garment', name: 'Boutique and Garment', description: 'Boutique and garment business' },
   ]
   const superAdminRow = db.prepare('SELECT id FROM super_admins ORDER BY created_at ASC LIMIT 1').get()
@@ -428,6 +428,12 @@ function createTables() {
         VALUES (?, ?, ?, ?, NOW())
         ON CONFLICT (id) DO NOTHING
       `).run(g.id, g.name, g.description, seedCreatedBy)
+    } catch (_) {}
+  }
+  for (const g of FIXED_GROUPS) {
+    try {
+      db.prepare('UPDATE chat_groups SET name = ?, description = ? WHERE id = ?')
+        .run(g.name, g.description, g.id)
     } catch (_) {}
   }
 

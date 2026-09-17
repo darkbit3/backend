@@ -66,9 +66,9 @@ function reseedFixedGroups() {
   if (!superAdminRow) return
   const FIXED_GROUP_IDS = [
     'group-cherk',
-    'group-textile',
-    'group-accessory',
-    'group-manufacturing',
+    'group-general',
+    'group-business',
+    'group-support',
     'group-boutique-garment',
   ]
   const update = db.prepare(`UPDATE chat_groups SET created_by = ? WHERE id = ? AND created_by = 'system'`)
